@@ -226,20 +226,20 @@ wins to French wins. Whether a person can win each has not been tried.
 | --- | --- | --- | --- | --- |
 | Mill Stream | 24 x 18 | German | A river with two bridges; the French have more of everything. | 0 : 6, in round 16 |
 | Four Roads | 24 x 16 | either | A crossroads between two equal sides. | 2 : 2, in rounds 12 to 18 |
-| Winter Line | 30 x 20, winter | German | Trenches, wire and two bunkers against more men, tanks and guns. | 0 : 4, in rounds 16 to 29 |
-| The Narrows | 34 x 22 | German | A strait with two bridges and gunboats between them; the French flotilla is the stronger. | 1 : 3, in rounds 29 to 57 |
+| Winter Line | 30 x 20, winter | German | Trench lines, wire and two bunkers against more men, tanks and guns. | 0 : 4, in rounds 12 to 20 |
+| The Narrows | 34 x 22 | German | A strait with two bridges, a quay on each bank and gunboats between them; the French flotilla is the stronger. | 2 : 2, in rounds 23 to 54 |
 | Iron Road | 24 x 32 | French | A railway down the map with sidings; the Germans have most of the trains. | 4 : 0, in rounds 25 to 28 |
 | Twin Rivers | 32 x 20 | German | Two rivers, a factory between them, and more footbridges on the French side. | 0 : 4, in rounds 15 to 21 |
 | The Passes | 28 x 20, winter | German | Two roads through mountains that only men on foot can climb, held by a few. | 0 : 4, in rounds 16 to 19 |
-| The Gulf | 36 x 24 | German | The French block the road round a gulf; the Germans have the ships to land behind them. | 0 : 4, in round 35 |
+| The Gulf | 36 x 24 | German | The French block the road round a gulf; the Germans have a harbour and the ships to land behind them. | 0 : 4, in rounds 33 to 35 |
 | Open Sky | 30 x 20 | German | German aircraft against a stronger French army with anti-aircraft guns. | 0 : 4, in rounds 17 to 26 |
-| The Big Push | 46 x 28 | German | A large battle: the Germans start stronger, behind a river, wire, two trench lines and four bunkers. | none decided in 40 rounds |
+| The Big Push | 46 x 28 | German | A large battle: the Germans start stronger, in front of a river, wired trenches, a second line and four bunkers. | none decided in 40 rounds |
 
 In The Narrows the buildings earn less than usual: with the usual incomes
 neither computer got across in 100 rounds and both only grew. On The Gulf
 the computer's Germans do sail their transports across, and lose both within
-ten rounds. Two battles of 100 rounds on The Big Push gave one French win in
-round 65 and one still undecided.
+ten rounds. Two battles of 100 rounds on The Big Push gave a French win in
+round 67 and a German win in round 72.
 
 Not done: picking a winter look (maps draw in either season as they are),
 and writing a map out in the game's own file formats. Whether the original
