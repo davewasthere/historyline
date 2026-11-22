@@ -1,0 +1,64 @@
+{
+  "title": "The Narrows",
+  "about": "A strait with two bridges and gunboats between them. The French have the stronger flotilla; the German side is the one to play.",
+  "season": "summer",
+  "seed": 9,
+  "ground": [
+    "............,.-~~~~-.....ffff.....",
+    "...ff.........-~~~~-.....fffff....",
+    "..ff..ff......-~~~~-..h..ffff.ffff",
+    "..f..fff......-~~~~-.h....ff..ffff",
+    "f...fffff.....-~~~~-..........ffff",
+    "......f.......-~~~~-..........f.,.",
+    "...f........h.-~~~~-..............",
+    "..^...........-~~~~-...........^..",
+    "............h.-~~~~-.f............",
+    "...........f..-~~~~-.f..^...,.....",
+    "..............-~~~~-..............",
+    "..............-~~~~-............ff",
+    "..............-~~~~-.....ff....fff",
+    ".f............-~~~~-..........ffff",
+    ".ff.......f...-~~~~-.,........f.f.",
+    ".f.....,......-~~~~-....f.......f.",
+    "..............-~~~~-..............",
+    "...........^..-~~~~-..h........f..",
+    "...ff,.f.f....-~~~~-....ff...ff...",
+    ".fff.....ff...-~~~~-....ff....f...",
+    "........f.f...-~~~~-....ffff......",
+    "..............-~~~~-....ffff......"
+  ],
+  "roads": [
+    [[4, 10], [4, 9], [6, 8], [7, 8], [8, 8], [9, 8], [21, 2], [29, 6], [29, 10]]
+  ],
+  "tracks": [
+    [[8, 12], [9, 11], [21, 17], [21, 18]]
+  ],
+  "buildings": [
+    { "kind": "headquarters", "owner": "german", "at": [4, 10], "income": 6, "holds": ["INFANTRY", "INFANTRY"] },
+    { "kind": "factory", "owner": "german", "at": [8, 12], "income": 10 },
+    { "kind": "depot", "owner": "neutral", "at": [10, 3], "income": 6 },
+    { "kind": "headquarters", "owner": "french", "at": [29, 10], "income": 6, "holds": ["INFANTRY", "INFANTRY", "ELITE INFANTRY"] },
+    { "kind": "factory", "owner": "french", "at": [27, 15], "income": 10 },
+    { "kind": "depot", "owner": "neutral", "at": [21, 18], "income": 6 }
+  ],
+  "units": [
+    { "kind": "TORPEDO BOAT", "side": "german", "at": [15, 9] },
+    { "kind": "PATROL BOAT", "side": "german", "at": [15, 11] },
+    { "kind": "TORPEDO BOAT", "side": "french", "at": [[18, 8], [18, 11]] },
+    { "kind": "PATROL BOAT", "side": "french", "at": [18, 12] },
+    { "kind": "INFANTRY", "side": "german", "at": [[6, 7], [7, 10], [9, 9], [10, 11]] },
+    { "kind": "ELITE INFANTRY", "side": "german", "at": [11, 7] },
+    { "kind": "ARMOURED CAR", "side": "german", "at": [8, 8] },
+    { "kind": "LIGHT ARTILLERY", "side": "german", "at": [[9, 10], [11, 13]] },
+    { "kind": "MEDIUM ARTILLERY", "side": "german", "at": [6, 13] },
+    { "kind": "ANTI-TANK GUNS", "side": "german", "at": [12, 13] },
+    { "kind": "CAVALRY", "side": "german", "at": [12, 9] },
+    { "kind": "INFANTRY", "side": "french", "at": [[24, 5], [26, 7], [27, 9], [24, 12], [23, 17]] },
+    { "kind": "ELITE INFANTRY", "side": "french", "at": [22, 4] },
+    { "kind": "RENAULT FT 17", "side": "french", "at": [[25, 4], [25, 13]] },
+    { "kind": "LIGHT ARTILLERY", "side": "french", "at": [[22, 8], [23, 14]] },
+    { "kind": "MEDIUM ARTILLERY", "side": "french", "at": [27, 12] },
+    { "kind": "CAVALRY", "side": "french", "at": [22, 10] }
+  ],
+  "buildable": ["INFANTRY", "ELITE INFANTRY", "SAPPERS", "ANTI-TANK GUNS", "CAVALRY", "ARMOURED CAR", "A7V TANK", "CHARRON", "RENAULT FT 17", "MARK I.", "ST. CHAMMOND", "MARK IV.", "LIGHT ARTILLERY", "MEDIUM ARTILLERY", "HEAVY ARTILLERY", "MOB AA-EMPLACEM.", "STAT AA-EMPLACEM", "SUPPLY CAR"]
+}

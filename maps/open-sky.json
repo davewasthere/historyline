@@ -1,0 +1,63 @@
+{
+  "title": "Open Sky",
+  "about": "Open country. The Germans rule the sky, but the French have the stronger army and guns that point upwards; the German side is the one to play.",
+  "season": "summer",
+  "seed": 29,
+  "ground": [
+    ".......................ff..fff",
+    ",..........f.f......ff...f.fff",
+    "..,,,,,,....f.....,fff....ffff",
+    "..,,,,,,..............,...f.ff",
+    "..,,,,,,..........^.........ff",
+    "..............................",
+    "..............h...............",
+    "f.............................",
+    "...........f..h.h.............",
+    ".........ffff...h.............",
+    "..........fff.................",
+    ".................f.f..........",
+    "fff......^.p.....ffff.....,...",
+    "fff.............fffff.........",
+    "fff.......f.^.....fff.....,,,.",
+    "f.......ffff.......f......,,,.",
+    "........fffff.....fffff...,,,.",
+    "........f.fff......fff.......f",
+    "..................f.f.f.......",
+    "....................f........."
+  ],
+  "roads": [
+    [[4, 9], [4, 8], [6, 7], [7, 7], [8, 7], [9, 7], [10, 7], [11, 7], [12, 7], [13, 7], [14, 7], [15, 7], [16, 7], [17, 7], [18, 7], [19, 7], [20, 7], [21, 7], [22, 7], [23, 7], [24, 7], [25, 7], [25, 9]]
+  ],
+  "tracks": [
+    [[15, 7], [15, 17]]
+  ],
+  "buildings": [
+    { "kind": "headquarters", "owner": "german", "at": [4, 9], "holds": ["INFANTRY", "INFANTRY"] },
+    { "kind": "factory", "owner": "german", "at": [6, 15] },
+    { "kind": "factory", "owner": "neutral", "at": [15, 3] },
+    { "kind": "depot", "owner": "neutral", "at": [15, 17] },
+    { "kind": "headquarters", "owner": "french", "at": [25, 9], "holds": ["INFANTRY", "INFANTRY", "ELITE INFANTRY"] },
+    { "kind": "factory", "owner": "french", "at": [25, 15] }
+  ],
+  "units": [
+    { "kind": "FOKKER DR I.", "side": "german", "at": [[3, 3], [5, 3]] },
+    { "kind": "ALBATROS", "side": "german", "at": [7, 3] },
+    { "kind": "GOTHA BOMBER", "side": "german", "at": [[2, 2], [4, 2]] },
+    { "kind": "JUNKERS J4-10", "side": "german", "at": [6, 2] },
+    { "kind": "INFANTRY", "side": "german", "at": [[6, 8], [7, 10], [8, 6]] },
+    { "kind": "ARMOURED CAR", "side": "german", "at": [8, 8] },
+    { "kind": "LIGHT ARTILLERY", "side": "german", "at": [6, 11] },
+    { "kind": "MOB AA-EMPLACEM.", "side": "german", "at": [3, 7] },
+    { "kind": "SPAD VII", "side": "french", "at": [27, 15] },
+    { "kind": "NIEUPORT XVII", "side": "french", "at": [27, 14] },
+    { "kind": "MOB AA-EMPLACEM.", "side": "french", "at": [[22, 8], [22, 12]] },
+    { "kind": "STAT AA-EMPLACEM", "side": "french", "at": [[26, 7], [24, 13]] },
+    { "kind": "STATIC BALLOON", "side": "french", "at": [21, 10] },
+    { "kind": "INFANTRY", "side": "french", "at": [[21, 6], [22, 9], [21, 12], [23, 14]] },
+    { "kind": "ELITE INFANTRY", "side": "french", "at": [20, 8] },
+    { "kind": "RENAULT FT 17", "side": "french", "at": [[21, 7], [22, 10]] },
+    { "kind": "LIGHT ARTILLERY", "side": "french", "at": [23, 6] },
+    { "kind": "MEDIUM ARTILLERY", "side": "french", "at": [23, 11] }
+  ],
+  "buildable": ["INFANTRY", "ELITE INFANTRY", "SAPPERS", "ANTI-TANK GUNS", "CAVALRY", "ARMOURED CAR", "A7V TANK", "CHARRON", "RENAULT FT 17", "MARK I.", "ST. CHAMMOND", "MARK IV.", "LIGHT ARTILLERY", "MEDIUM ARTILLERY", "HEAVY ARTILLERY", "MOB AA-EMPLACEM.", "STAT AA-EMPLACEM", "SUPPLY CAR", "STATIC BALLOON", "FOKKER E III.", "ALBATROS", "FOKKER DR I.", "FOKKER D VII", "GOTHA BOMBER", "JUNKERS J4-10", "MORANE", "NIEUPORT XVII", "SPAD VII", "SOPWITH CAMEL", "VOISIN III", "D.H.4", "HANDLEY PAGE"]
+}

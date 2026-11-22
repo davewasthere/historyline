@@ -1,0 +1,57 @@
+{
+  "title": "Winter Line",
+  "about": "Winter on a dug-in front. The Germans hold a trench line and two bunkers against more men, tanks and guns; the German side is the one to play.",
+  "season": "winter",
+  "seed": 5,
+  "ground": [
+    "..................ffff........",
+    "...................ffff....ff.",
+    "...........,......f.fff....fff",
+    "ff........^...............ffff",
+    "..f......f.................fff",
+    "...^......f...............f.ff",
+    "..f............f..f...........",
+    "...ttttt.ttttt.tt.tt.ttttt.t..",
+    "ffooo,,,,oo...oo,.,,o,,,,..,..",
+    "....######.#####...#####.##...",
+    "ff,,o,o.,.,o.oo.o.,,o..,.o,,f.",
+    "......tttt.tttt....t.tttt.....",
+    ".........................f.,..",
+    "ff...,....................^...",
+    ".fff,...............,.........",
+    "fff........f................f.",
+    "ffff........................ff",
+    "ff...............,..........f.",
+    ".........ff.f.................",
+    "........f....................."
+  ],
+  "roads": [
+    [[15, 2], [15, 1], [16, 1], [17, 1], [17, 12], [15, 13], [15, 15]]
+  ],
+  "buildings": [
+    { "kind": "headquarters", "owner": "german", "at": [15, 2], "holds": ["INFANTRY", "ELITE INFANTRY"] },
+    { "kind": "factory", "owner": "german", "at": [24, 3] },
+    { "kind": "depot", "owner": "german", "at": [6, 2] },
+    { "kind": "headquarters", "owner": "french", "at": [15, 15], "holds": ["INFANTRY", "INFANTRY", "ELITE INFANTRY"] },
+    { "kind": "factory", "owner": "french", "at": [7, 16], "income": 20 },
+    { "kind": "depot", "owner": "french", "at": [24, 15] }
+  ],
+  "units": [
+    { "kind": "BUNKER", "side": "german", "at": [[10, 6], [22, 6]] },
+    { "kind": "INFANTRY", "side": "german", "at": [[5, 7], [9, 7], [13, 7], [21, 7], [25, 7]] },
+    { "kind": "ANTI-TANK GUNS", "side": "german", "at": [[16, 7], [18, 7]] },
+    { "kind": "LIGHT ARTILLERY", "side": "german", "at": [[12, 5], [21, 5]] },
+    { "kind": "MEDIUM ARTILLERY", "side": "german", "at": [16, 5] },
+    { "kind": "STAT AA-EMPLACEM", "side": "german", "at": [13, 4] },
+    { "kind": "INFANTRY", "side": "french", "at": [[7, 11], [11, 11], [13, 11], [19, 11], [22, 11], [24, 12]] },
+    { "kind": "ELITE INFANTRY", "side": "french", "at": [[12, 13], [20, 13]] },
+    { "kind": "SAPPERS", "side": "french", "at": [16, 12] },
+    { "kind": "RENAULT FT 17", "side": "french", "at": [[9, 13], [14, 13], [21, 13]] },
+    { "kind": "MARK I.", "side": "french", "at": [[11, 14], [19, 14]] },
+    { "kind": "ST. CHAMMOND", "side": "french", "at": [17, 13] },
+    { "kind": "LIGHT ARTILLERY", "side": "french", "at": [[8, 14], [22, 14]] },
+    { "kind": "MEDIUM ARTILLERY", "side": "french", "at": [[13, 15], [18, 15]] },
+    { "kind": "HEAVY ARTILLERY", "side": "french", "at": [12, 16] }
+  ],
+  "buildable": ["INFANTRY", "ELITE INFANTRY", "SAPPERS", "ANTI-TANK GUNS", "CAVALRY", "ARMOURED CAR", "A7V TANK", "CHARRON", "RENAULT FT 17", "MARK I.", "ST. CHAMMOND", "MARK IV.", "LIGHT ARTILLERY", "MEDIUM ARTILLERY", "HEAVY ARTILLERY", "MOB AA-EMPLACEM.", "STAT AA-EMPLACEM", "SUPPLY CAR"]
+}

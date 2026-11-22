@@ -1,0 +1,66 @@
+{
+  "title": "Twin Rivers",
+  "about": "Two rivers and the land between them, with a factory for whoever gets there. The French have more men and more footbridges; the German side is the one to play.",
+  "season": "summer",
+  "seed": 17,
+  "ground": [
+    ".f...........ffff....f...f...f.f",
+    "fff......f...ffff......fff....ff",
+    ".ff.....f..ffff.f....f.fffff....",
+    ".......f......f...ff...fffff....",
+    ".........f.........f....fff.....",
+    "................................",
+    "..............f.................",
+    ".............................f..",
+    "................hhh............f",
+    "................................",
+    ".....f.........h.h.......,......",
+    "..,............,................",
+    "..^f..............^,............",
+    "..............................f.",
+    "..............................^.",
+    ".......f....fff..fff............",
+    "......,f.....f..fffff...........",
+    "fff...,.......^..ffff........fff",
+    "f.................f.f.......ffff",
+    ".......................,....f.ff"
+  ],
+  "rivers": [
+    [[10, 0], [10, 6], [11, 6], [11, 19]],
+    [[22, 0], [22, 9], [21, 9], [21, 19]]
+  ],
+  "roads": [
+    [[4, 8], [4, 7], [6, 6], [7, 6], [8, 6], [15, 9], [16, 9], [17, 9], [18, 9], [23, 11], [24, 11], [25, 11], [26, 11], [27, 11], [27, 12]]
+  ],
+  "tiles": [
+    { "tile": 59, "at": [11, 14] },
+    { "tile": 59, "at": [22, 4] },
+    { "tile": 59, "at": [21, 15] }
+  ],
+  "buildings": [
+    { "kind": "headquarters", "owner": "german", "at": [4, 8], "holds": ["INFANTRY", "INFANTRY"] },
+    { "kind": "factory", "owner": "german", "at": [5, 13] },
+    { "kind": "factory", "owner": "neutral", "at": [16, 5] },
+    { "kind": "depot", "owner": "neutral", "at": [16, 13] },
+    { "kind": "headquarters", "owner": "french", "at": [27, 12], "holds": ["INFANTRY", "INFANTRY", "ELITE INFANTRY"] },
+    { "kind": "factory", "owner": "french", "at": [28, 5] },
+    { "kind": "depot", "owner": "french", "at": [26, 16] }
+  ],
+  "units": [
+    { "kind": "INFANTRY", "side": "german", "at": [[6, 7], [7, 9], [8, 5], [8, 11]] },
+    { "kind": "ELITE INFANTRY", "side": "german", "at": [9, 7] },
+    { "kind": "ARMOURED CAR", "side": "german", "at": [7, 6] },
+    { "kind": "LIGHT ARTILLERY", "side": "german", "at": [6, 10] },
+    { "kind": "MEDIUM ARTILLERY", "side": "german", "at": [3, 6] },
+    { "kind": "CAVALRY", "side": "german", "at": [9, 9] },
+    { "kind": "ANTI-TANK GUNS", "side": "german", "at": [8, 8] },
+    { "kind": "INFANTRY", "side": "french", "at": [[23, 10], [24, 13], [23, 6], [24, 15], [25, 8]] },
+    { "kind": "ELITE INFANTRY", "side": "french", "at": [[23, 12], [24, 9]] },
+    { "kind": "SAPPERS", "side": "french", "at": [23, 4] },
+    { "kind": "RENAULT FT 17", "side": "french", "at": [[25, 11], [24, 10]] },
+    { "kind": "LIGHT ARTILLERY", "side": "french", "at": [[25, 13], [26, 7]] },
+    { "kind": "MEDIUM ARTILLERY", "side": "french", "at": [28, 9] },
+    { "kind": "CAVALRY", "side": "french", "at": [23, 14] }
+  ],
+  "buildable": ["INFANTRY", "ELITE INFANTRY", "SAPPERS", "ANTI-TANK GUNS", "CAVALRY", "ARMOURED CAR", "A7V TANK", "CHARRON", "RENAULT FT 17", "MARK I.", "ST. CHAMMOND", "MARK IV.", "LIGHT ARTILLERY", "MEDIUM ARTILLERY", "HEAVY ARTILLERY", "MOB AA-EMPLACEM.", "STAT AA-EMPLACEM", "SUPPLY CAR"]
+}

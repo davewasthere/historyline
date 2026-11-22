@@ -1,0 +1,49 @@
+{
+  "title": "Four Roads",
+  "about": "A small fight for the crossroads between the two headquarters, with the same on each side. Either side can be played.",
+  "season": "summer",
+  "seed": 3,
+  "ground": [
+    "...........ff.,....,....",
+    ".f.f......,...f.....ff..",
+    "ff.......^...........ff.",
+    ".....f....p....^........",
+    "........................",
+    "........................",
+    "f..........h..........f.",
+    "............h...........",
+    "..........h...h...f.....",
+    "............h...........",
+    ".............h..........",
+    "..f.....................",
+    ".............f.........f",
+    "...f.....f....^......fff",
+    "..f..f.......f.......fff",
+    "..f.f.......f........fff"
+  ],
+  "roads": [
+    [[5, 6], [5, 5], [6, 5], [18, 11], [18, 12]],
+    [[5, 11], [17, 5]]
+  ],
+  "buildings": [
+    { "kind": "headquarters", "owner": "german", "at": [5, 6], "holds": ["INFANTRY", "INFANTRY"] },
+    { "kind": "headquarters", "owner": "french", "at": [18, 12], "holds": ["INFANTRY", "INFANTRY"] },
+    { "kind": "factory", "owner": "german", "at": [5, 11] },
+    { "kind": "factory", "owner": "french", "at": [20, 5] },
+    { "kind": "depot", "owner": "neutral", "at": [12, 2] },
+    { "kind": "depot", "owner": "neutral", "at": [11, 12] }
+  ],
+  "units": [
+    { "kind": "INFANTRY", "side": "german", "at": [[7, 7], [3, 6], [6, 4]] },
+    { "kind": "ELITE INFANTRY", "side": "german", "at": [8, 6] },
+    { "kind": "ARMOURED CAR", "side": "german", "at": [7, 5] },
+    { "kind": "LIGHT ARTILLERY", "side": "german", "at": [4, 5] },
+    { "kind": "CAVALRY", "side": "german", "at": [8, 8] },
+    { "kind": "INFANTRY", "side": "french", "at": [[16, 11], [20, 12], [17, 14]] },
+    { "kind": "ELITE INFANTRY", "side": "french", "at": [15, 11] },
+    { "kind": "CHARRON", "side": "french", "at": [17, 10] },
+    { "kind": "LIGHT ARTILLERY", "side": "french", "at": [20, 13] },
+    { "kind": "CAVALRY", "side": "french", "at": [15, 12] }
+  ],
+  "buildable": ["INFANTRY", "ELITE INFANTRY", "SAPPERS", "ANTI-TANK GUNS", "CAVALRY", "ARMOURED CAR", "A7V TANK", "CHARRON", "RENAULT FT 17", "MARK I.", "ST. CHAMMOND", "MARK IV.", "LIGHT ARTILLERY", "MEDIUM ARTILLERY", "HEAVY ARTILLERY", "MOB AA-EMPLACEM.", "STAT AA-EMPLACEM", "SUPPLY CAR"]
+}

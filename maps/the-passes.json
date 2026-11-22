@@ -1,0 +1,73 @@
+{
+  "title": "The Passes",
+  "about": "Two roads through a wall of mountains that only men on foot can climb. The Germans are few and hold the passes; the German side is the one to play.",
+  "season": "winter",
+  "seed": 19,
+  "ground": [
+    ".....f..........fff.........",
+    ".f,...............ff.......f",
+    ".ff.....f.......ff.....f..f.",
+    "ff...............ff.......f.",
+    "............................",
+    "............................",
+    "..^......................^..",
+    "...........f................",
+    "r^r^rr^rr.rrrr^^^rr.r^^^r^rr",
+    "rr^^rrrrr.^^r^r^r^^.^rr^rr^^",
+    "^rr^r^^^^.^r^rr^^rr.^r^^^rrr",
+    "rrrrr^^rr.rr^rr^r^^.r^r^rr^r",
+    "....,......ff..........fff..",
+    "...ff^.................ffff.",
+    ".ffff...................f...",
+    ".ffff...f...................",
+    "............................",
+    ".fff.....f.............^.f..",
+    "..........f.............ff..",
+    "..........f.............f..."
+  ],
+  "roads": [
+    [[14, 2], [14, 1], [13, 0], [9, 2], [9, 12], [14, 15], [14, 16]],
+    [[14, 1], [15, 0], [19, 2], [19, 12], [14, 15]]
+  ],
+  "scenery": [
+    { "piece": "mountain", "at": [1, 8] },
+    { "piece": "mountain", "at": [4, 8] },
+    { "piece": "mountain", "at": [7, 8] },
+    { "piece": "mountain", "at": [11, 8] },
+    { "piece": "mountain", "at": [14, 8] },
+    { "piece": "mountain", "at": [17, 8] },
+    { "piece": "mountain", "at": [21, 8] },
+    { "piece": "mountain", "at": [24, 8] },
+    { "piece": "mountain", "at": [2, 10] },
+    { "piece": "mountain", "at": [5, 10] },
+    { "piece": "mountain", "at": [12, 10] },
+    { "piece": "mountain", "at": [15, 10] },
+    { "piece": "mountain", "at": [22, 10] },
+    { "piece": "mountain", "at": [25, 10] }
+  ],
+  "buildings": [
+    { "kind": "headquarters", "owner": "german", "at": [14, 2], "holds": ["INFANTRY", "INFANTRY"] },
+    { "kind": "factory", "owner": "german", "at": [22, 4] },
+    { "kind": "depot", "owner": "german", "at": [5, 3] },
+    { "kind": "headquarters", "owner": "french", "at": [14, 16], "holds": ["INFANTRY", "INFANTRY", "ELITE INFANTRY"] },
+    { "kind": "factory", "owner": "french", "at": [7, 16], "income": 20 },
+    { "kind": "depot", "owner": "french", "at": [22, 15] }
+  ],
+  "units": [
+    { "kind": "BUNKER", "side": "german", "at": [[8, 6], [20, 6]] },
+    { "kind": "INFANTRY", "side": "german", "at": [[9, 6], [10, 7], [18, 7], [19, 5], [14, 6]] },
+    { "kind": "ELITE INFANTRY", "side": "german", "at": [12, 5] },
+    { "kind": "ANTI-TANK GUNS", "side": "german", "at": [[9, 7], [19, 7]] },
+    { "kind": "LIGHT ARTILLERY", "side": "german", "at": [[11, 4], [17, 4]] },
+    { "kind": "MEDIUM ARTILLERY", "side": "german", "at": [14, 5] },
+    { "kind": "INFANTRY", "side": "french", "at": [[8, 13], [10, 14], [12, 13], [16, 13], [18, 14], [20, 13], [14, 13]] },
+    { "kind": "ELITE INFANTRY", "side": "french", "at": [[11, 14], [17, 14]] },
+    { "kind": "RENAULT FT 17", "side": "french", "at": [[9, 13], [19, 13]] },
+    { "kind": "MARK I.", "side": "french", "at": [9, 14] },
+    { "kind": "MARK IV.", "side": "french", "at": [19, 14] },
+    { "kind": "LIGHT ARTILLERY", "side": "french", "at": [[12, 15], [16, 15]] },
+    { "kind": "MEDIUM ARTILLERY", "side": "french", "at": [[11, 16], [17, 16]] },
+    { "kind": "HEAVY ARTILLERY", "side": "french", "at": [12, 17] }
+  ],
+  "buildable": ["INFANTRY", "ELITE INFANTRY", "SAPPERS", "ANTI-TANK GUNS", "CAVALRY", "ARMOURED CAR", "A7V TANK", "CHARRON", "RENAULT FT 17", "MARK I.", "ST. CHAMMOND", "MARK IV.", "LIGHT ARTILLERY", "MEDIUM ARTILLERY", "HEAVY ARTILLERY", "MOB AA-EMPLACEM.", "STAT AA-EMPLACEM", "SUPPLY CAR"]
+}

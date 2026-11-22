@@ -181,6 +181,12 @@ it is opened. A sketch names no tiles. It says:
   eight shores, so not every coastline can be drawn: a field of water with
   land only straight above it has no tile, and the coast has to step past
   it. A river runs out cleanly into the head of a bay, between two shores.
+  What does draw: a coast that runs down the map, upright or leaning a
+  column every two rows either way; a slanting coast that drops a row every
+  two columns; a channel closed at the top by three fields in a row; and a
+  gulf that starts one field wide in an odd column and widens by a field on
+  each side every two rows. A long level coast and the foot of an island do
+  not.
 - Buildings and scenery are put down whole. Plain ground gets one of its
   looks, the same one every time for the same seed.
 
@@ -190,8 +196,29 @@ map is still made, so it can be looked at. A sketch in `maps/` is expected to
 have none; a test builds each and has the computer fight on it.
 
 A map need not be fair. `--play` shows how lopsided a battle is when the
-computer plays both sides; Mill Stream is meant to be hard for the German
-side, and the computer's French win it every time.
+computer plays both sides; most of these maps are meant to be hard for the
+side that is played. The last column is the result of four such battles of
+up to 40 rounds (six for Mill Stream, 60 rounds for The Narrows), as German
+wins to French wins. Whether a person can win each has not been tried.
+
+| Map | Fields | Play as | What it is | Computer against itself |
+| --- | --- | --- | --- | --- |
+| Mill Stream | 24 x 18 | German | A river with two bridges; the French have more of everything. | 0 : 6, in round 16 |
+| Four Roads | 24 x 16 | either | A crossroads between two equal sides. | 2 : 2, in rounds 12 to 18 |
+| Winter Line | 30 x 20, winter | German | Trenches, wire and two bunkers against more men, tanks and guns. | 0 : 4, in rounds 16 to 29 |
+| The Narrows | 34 x 22 | German | A strait with two bridges and gunboats between them; the French flotilla is the stronger. | 1 : 3, in rounds 29 to 57 |
+| Iron Road | 24 x 32 | French | A railway down the map with sidings; the Germans have most of the trains. | 4 : 0, in rounds 25 to 28 |
+| Twin Rivers | 32 x 20 | German | Two rivers, a factory between them, and more footbridges on the French side. | 0 : 4, in rounds 15 to 21 |
+| The Passes | 28 x 20, winter | German | Two roads through mountains that only men on foot can climb, held by a few. | 0 : 4, in rounds 16 to 19 |
+| The Gulf | 36 x 24 | German | The French block the road round a gulf; the Germans have the ships to land behind them. | 0 : 4, in round 35 |
+| Open Sky | 30 x 20 | German | German aircraft against a stronger French army with anti-aircraft guns. | 0 : 4, in rounds 17 to 26 |
+| The Big Push | 46 x 28 | German | A large battle: the Germans start stronger, behind a river, wire, two trench lines and four bunkers. | none decided in 40 rounds |
+
+In The Narrows the buildings earn less than usual: with the usual incomes
+neither computer got across in 100 rounds and both only grew. On The Gulf
+the computer's Germans do sail their transports across, and lose both within
+ten rounds. Two battles of 100 rounds on The Big Push gave one French win in
+round 65 and one still undecided.
 
 Not done: trench lines (a trench is one field), the harbour and quay pieces
 other than by tile number, picking a winter look (maps draw in either

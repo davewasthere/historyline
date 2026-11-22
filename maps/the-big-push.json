@@ -1,0 +1,90 @@
+{
+  "title": "The Big Push",
+  "about": "A large battle. For once the Germans start with more of everything, but they have a river, wire, two trench lines and four bunkers in front of them. The German side is the one to play.",
+  "season": "summer",
+  "seed": 31,
+  "ground": [
+    "........................ffff..................",
+    ".ff..........ff,...o.o..fffff.,..f.f........ff",
+    ".ff.........ff....o,.o#t.fff....fff........fff",
+    "..f................o.o#t........ffff......ffff",
+    "............f.........#.....^..t.ff.......ffff",
+    ".................t,f..#t...f...t...........ff.",
+    ".................t,,.o.t.........^............",
+    ".................t...o#t.......t..............",
+    "...^......h.......,...#t.......t...........^..",
+    ".................tfo.,#t..h....t..h...........",
+    ",........ff......too.o#.f.f......f............",
+    "........ffff.....t,..,.t.......t.fffff........",
+    ".........ffff....t,o.o#tf......t.fff...,....f.",
+    ".........ff........o.o#t......ft..fff.........",
+    ".................t,,.o#t.f...ff...............",
+    "f.......,........t.,.o#t.....fft.....f........",
+    "ffff.....^....,..t,..,.........tf......,.f.f..",
+    "fffff..f.........to,.o#t.......t.......,.ffff.",
+    ".............f.....,.,#t....f......f.....fff.,",
+    "..f.f............t....#t.......t..h.....f.f.f.",
+    ".................too..#t.......t..........f...",
+    ".............f...to..,.t,..h...t..............",
+    ".......f.........t.,.,#......f................",
+    "..ff.........f....,,.o#t.......t...........f.f",
+    "ffff..............,o.o#t.....^......f.....ffff",
+    ".fff...f.....f....o...#t.ffff...f..fff....ffff",
+    ".ffff.......ff....,o.o...ffff....f.ff......ff.",
+    ".............f...........ffff...,.......f....."
+  ],
+  "rivers": [
+    [[20, 0], [20, 27]]
+  ],
+  "rails": [
+    [[6, 0], [6, 27]],
+    [[38, 0], [38, 27]]
+  ],
+  "roads": [
+    [[0, 6], [1, 6], [2, 6], [3, 6], [4, 6], [7, 7], [8, 7], [9, 7], [10, 7], [11, 7], [12, 7], [13, 7], [14, 7], [15, 7], [16, 7], [17, 7], [18, 7], [21, 8], [22, 8], [23, 8], [24, 8], [25, 8], [26, 8], [27, 8], [28, 8], [29, 8], [30, 8], [31, 8], [32, 8], [33, 8], [34, 8], [35, 8], [36, 8], [39, 9], [40, 9], [41, 9], [42, 9], [43, 9], [44, 9], [45, 9]],
+    [[0, 18], [1, 18], [2, 18], [3, 18], [4, 18], [7, 19], [8, 19], [9, 19], [10, 19], [11, 19], [12, 19], [13, 19], [14, 19], [15, 19], [16, 19], [17, 19], [18, 19], [21, 20], [22, 20], [23, 20], [24, 20], [25, 20], [26, 20], [27, 20], [28, 20], [29, 20], [30, 20], [31, 20], [32, 20], [33, 20], [34, 20], [35, 20], [36, 20], [39, 21], [40, 21], [41, 21], [42, 21], [43, 21], [44, 21], [45, 21]]
+  ],
+  "tiles": [
+    { "tile": 59, "at": [20, 14] }
+  ],
+  "buildings": [
+    { "kind": "headquarters", "owner": "german", "at": [3, 12], "holds": ["INFANTRY", "INFANTRY", "ELITE INFANTRY"] },
+    { "kind": "factory", "owner": "german", "at": [10, 4] },
+    { "kind": "factory", "owner": "german", "at": [5, 22] },
+    { "kind": "depot", "owner": "german", "at": [9, 24] },
+    { "kind": "depot", "owner": "neutral", "at": [13, 13] },
+    { "kind": "depot", "owner": "neutral", "at": [27, 13] },
+    { "kind": "headquarters", "owner": "french", "at": [42, 13], "holds": ["INFANTRY", "INFANTRY", "ELITE INFANTRY", "RENAULT FT 17"] },
+    { "kind": "factory", "owner": "french", "at": [37, 4], "income": 25 },
+    { "kind": "factory", "owner": "french", "at": [34, 22], "income": 25 },
+    { "kind": "depot", "owner": "french", "at": [40, 22] }
+  ],
+  "units": [
+    { "kind": "ARMOURED TRAIN", "side": "german", "at": [6, 10] },
+    { "kind": "TRAIN ARTILLERY", "side": "german", "at": [6, 15] },
+    { "kind": "INFANTRY", "side": "german", "at": [[17, 5], [17, 9], [17, 12], [17, 16], [17, 20], [15, 7], [15, 14], [15, 19]] },
+    { "kind": "ELITE INFANTRY", "side": "german", "at": [[16, 8], [16, 13], [16, 20]] },
+    { "kind": "SAPPERS", "side": "german", "at": [18, 13] },
+    { "kind": "A7V TANK", "side": "german", "at": [[14, 7], [14, 19], [13, 10]] },
+    { "kind": "ARMOURED CAR", "side": "german", "at": [[12, 8], [12, 20]] },
+    { "kind": "LIGHT ARTILLERY", "side": "german", "at": [[14, 5], [14, 12], [14, 21]] },
+    { "kind": "MEDIUM ARTILLERY", "side": "german", "at": [[12, 11], [12, 17]] },
+    { "kind": "HEAVY ARTILLERY", "side": "german", "at": [10, 14] },
+    { "kind": "CAVALRY", "side": "german", "at": [[11, 2], [11, 25]] },
+    { "kind": "MOB AA-EMPLACEM.", "side": "german", "at": [8, 12] },
+    { "kind": "FOKKER DR I.", "side": "german", "at": [8, 9] },
+    { "kind": "GOTHA BOMBER", "side": "german", "at": [8, 16] },
+    { "kind": "BUNKER", "side": "french", "at": [[24, 5], [24, 11], [24, 17], [24, 23]] },
+    { "kind": "INFANTRY", "side": "french", "at": [[23, 3], [23, 7], [23, 9], [23, 13], [23, 15], [23, 19], [23, 21], [23, 24]] },
+    { "kind": "ANTI-TANK GUNS", "side": "french", "at": [[24, 8], [24, 20], [31, 13]] },
+    { "kind": "ELITE INFANTRY", "side": "french", "at": [[31, 8], [31, 19]] },
+    { "kind": "RENAULT FT 17", "side": "french", "at": [[29, 9], [29, 20]] },
+    { "kind": "LIGHT ARTILLERY", "side": "french", "at": [[26, 6], [26, 21]] },
+    { "kind": "MEDIUM ARTILLERY", "side": "french", "at": [[28, 11], [28, 17]] },
+    { "kind": "HEAVY ARTILLERY", "side": "french", "at": [33, 14] },
+    { "kind": "STAT AA-EMPLACEM", "side": "french", "at": [[30, 12], [35, 16]] },
+    { "kind": "TRAIN ARTILLERY", "side": "french", "at": [38, 12] },
+    { "kind": "SPAD VII", "side": "french", "at": [40, 10] }
+  ],
+  "buildable": ["INFANTRY", "ELITE INFANTRY", "SAPPERS", "ANTI-TANK GUNS", "CAVALRY", "ARMOURED CAR", "A7V TANK", "CHARRON", "RENAULT FT 17", "MARK I.", "ST. CHAMMOND", "MARK IV.", "LIGHT ARTILLERY", "MEDIUM ARTILLERY", "HEAVY ARTILLERY", "MOB AA-EMPLACEM.", "STAT AA-EMPLACEM", "SUPPLY CAR", "ARMOURED TRAIN", "TRAIN ARTILLERY", "SUPPLY TRAIN", "STATIC BALLOON", "FOKKER E III.", "ALBATROS", "FOKKER DR I.", "FOKKER D VII", "GOTHA BOMBER", "JUNKERS J4-10", "MORANE", "NIEUPORT XVII", "SPAD VII", "SOPWITH CAMEL", "VOISIN III", "D.H.4", "HANDLEY PAGE"]
+}
