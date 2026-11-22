@@ -1,0 +1,23 @@
+{
+  "name": "historyline-engine",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Tools and a map viewer for Historyline 1914-1918, reading data from an owned copy of the game.",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "unpack": "node tools/unpack.ts",
+    "render": "node tools/render.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8"
+  }
+}

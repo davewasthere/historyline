@@ -1,0 +1,502 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f4f3ef;
+  --panel: #ffffff;
+  --stage: #dcdad2;
+  --text: #1f1e1b;
+  --muted: #6a675f;
+  --line: #d3d0c6;
+  --accent: #3d5a3a;
+  --accent-text: #ffffff;
+  --hover: #ebe9e2;
+  --winter: #4a7fb5;
+  font: 14px/1.4 system-ui, 'Segoe UI', sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1b1c1a;
+    --panel: #242522;
+    --stage: #121311;
+    --text: #e6e4dc;
+    --muted: #9d9a90;
+    --line: #3a3b37;
+    --accent: #8fb489;
+    --accent-text: #10140f;
+    --hover: #2e2f2b;
+  --winter: #7fb0e0;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  display: grid;
+  grid-template: 'toolbar toolbar toolbar' auto 'maps stage details' minmax(0, 1fr) / 12rem minmax(0, 1fr) 19rem;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.toolbar {
+  grid-area: toolbar;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+
+.toolbar h1 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.segmented {
+  display: inline-flex;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.segmented input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.segmented span {
+  display: block;
+  padding: 0.2rem 0.7rem;
+  cursor: pointer;
+}
+
+.segmented input:checked + span {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.segmented input:focus-visible + span {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.check,
+.select {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+select {
+  font: inherit;
+  color: inherit;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.15rem 0.3rem;
+}
+
+.turn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.turn-status {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.turn button {
+  font: inherit;
+  color: inherit;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.2rem 0.7rem;
+  cursor: pointer;
+}
+
+.turn button:hover {
+  background: var(--hover);
+}
+
+.turn button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.turn button:disabled:hover {
+  background: var(--panel);
+}
+
+#end-turn {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+#end-turn:hover {
+  filter: brightness(1.1);
+  background: var(--accent);
+}
+
+.field-info {
+  flex: 1 1 18rem;
+  min-width: 0;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.maps,
+.details {
+  overflow-y: auto;
+  background: var(--panel);
+}
+
+.maps {
+  grid-area: maps;
+  border-right: 1px solid var(--line);
+  padding: 0.5rem;
+}
+
+.details {
+  grid-area: details;
+  border-left: 1px solid var(--line);
+  padding: 0.75rem;
+}
+
+.maps h2,
+.details h2 {
+  margin: 0.75rem 0 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.maps h2:first-child,
+.details h2:first-child {
+  margin-top: 0;
+}
+
+.map-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.25rem;
+}
+
+.map-grid button {
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  color: inherit;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 0.2rem 0;
+  cursor: pointer;
+}
+
+.map-grid button:hover {
+  background: var(--hover);
+}
+
+/* Maps the game plays in winter. */
+.map-grid button.winter {
+  border-style: dashed;
+  border-color: var(--winter);
+}
+
+/* Maps with a saved battle: a dot in the corner. */
+.map-grid button.saved {
+  position: relative;
+}
+
+.map-grid button.saved::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.map-grid button[aria-current='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.stage {
+  grid-area: stage;
+  overflow: auto;
+  background: var(--stage);
+  padding: 1rem;
+}
+
+.canvas-wrap {
+  position: relative;
+  width: max-content;
+  margin: 0 auto;
+}
+
+canvas {
+  display: block;
+  image-rendering: pixelated;
+}
+
+#map {
+  cursor: crosshair;
+}
+
+.details p.sub {
+  margin: 0.4rem 0 0;
+}
+
+#overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.message {
+  max-width: 34rem;
+  margin: 2rem auto;
+  padding: 1rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.details dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.15rem 0.75rem;
+  margin: 0;
+}
+
+.details dt {
+  color: var(--muted);
+}
+
+.details dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.details ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.details li {
+  padding: 0.3rem 0;
+  border-top: 1px solid var(--line);
+}
+
+.details li:first-child {
+  border-top: 0;
+}
+
+.details .sub {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.details button,
+.inside button {
+  font: inherit;
+  font-size: 0.85rem;
+  color: inherit;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  margin-top: 0.25rem;
+  padding: 0.1rem 0.6rem;
+  cursor: pointer;
+}
+
+.details button:hover,
+.inside button:hover {
+  background: var(--hover);
+}
+
+.details > button {
+  margin-right: 0.4rem;
+}
+
+/* The dialog that shows the inside of a transport or building. */
+.inside {
+  width: min(46rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  padding: 0;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.inside::backdrop {
+  background: rgb(0 0 0 / 0.45);
+}
+
+.inside-body {
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+.inside header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.inside h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.inside h3 {
+  margin: 1.1rem 0 0.2rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.inside .sub {
+  margin: 0.2rem 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.inside button.inside-close {
+  margin: 0;
+}
+
+.inside-note {
+  margin: 0.75rem 0 0;
+  padding: 0.4rem 0.6rem;
+  border-left: 3px solid var(--accent);
+  background: var(--hover);
+}
+
+.places {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+}
+
+.choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+
+.place,
+.choice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  padding: 0.5rem 0.3rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  text-align: center;
+}
+
+.place.empty {
+  justify-content: center;
+  min-height: 9rem;
+  border-style: dashed;
+  background: none;
+}
+
+.place-number {
+  font-size: 1.4rem;
+  color: var(--line);
+}
+
+.place canvas,
+.choice canvas {
+  width: 72px;
+  height: 72px;
+}
+
+.place-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* One mark per vehicle, gun or man of a full unit; the lost ones hollow. */
+.pips {
+  display: flex;
+  gap: 2px;
+  margin-top: 0.3rem;
+}
+
+.pip {
+  width: 7px;
+  height: 7px;
+  border: 1px solid var(--accent);
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.pip.lost {
+  background: none;
+  border-color: var(--muted);
+}
+
+/* A kind the side cannot pay for yet. */
+.choice.dear {
+  opacity: 0.5;
+}
+
+@media (max-width: 700px) {
+  .places {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 800px) {
+  body {
+    grid-template: 'toolbar' auto 'maps' auto 'stage' minmax(60vh, 1fr) 'details' auto / minmax(0, 1fr);
+    height: auto;
+  }
+
+  .maps,
+  .details {
+    border: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .map-grid {
+    grid-template-columns: repeat(auto-fill, minmax(2.6rem, 1fr));
+  }
+}

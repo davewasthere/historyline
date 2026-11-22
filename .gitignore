@@ -1,0 +1,7 @@
+# Unpacked copies of the original game's data. Regenerate with
+# `node tools/unpack.mjs`; never commit them.
+/unpacked/
+# Rendered images of the original game's graphics.
+/out/
+node_modules/
+dist/
