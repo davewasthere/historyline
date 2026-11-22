@@ -15,6 +15,7 @@ import type { Side } from '../formats/map.ts';
 import { OWNERS } from '../formats/shops.ts';
 import { canEnter, terrainClassName, terrainMaskNames } from '../formats/terrain.ts';
 import type { UnitType, Weapon } from '../formats/unitTypes.ts';
+import { ATTACKS_INDIRECTLY, ATTACKS_NEVER_BACK } from '../game/combat.ts';
 import { computerPlay, type ComputerTurn } from '../game/computer.ts';
 import type { Field } from '../game/movement.ts';
 import { restoreGame, saveGame, type SavedGame } from '../game/save.ts';
@@ -182,6 +183,8 @@ let selected: Field | null = null;
 let leaving: Unit | null = null;
 /** The transport or building the dialog shows, while it is open. */
 let inside: Holder | null = null;
+/** The kind picked in the dialog's list of what a factory can build: the one whose details it shows. */
+let picked: number | null = null;
 /** A message that replaces the field description until the pointer moves on. */
 let notice: string | null = null;
 /** For each side, the half ("round:mover") in which the computer last played it, so that it plays a half once. */
@@ -946,7 +949,11 @@ function unitFacts(type: UnitType): [string, string][] {
     ['Weight', type.loadClasses === 0 ? 'no transport carries it' : String(type.weight)],
   ];
   if (type.capacity > 0) facts.push(['Capacity', String(type.capacity)]);
+  const armed = [type.weapons.air, type.weapons.ground, type.weapons.water].some((weapon) => weapon && weapon.power > 0);
+  if (armed && type.attackMask & ATTACKS_INDIRECTLY) facts.push(['Fires from afar', 'not at the fields beside it, and never back']);
+  else if (armed && type.attackMask & ATTACKS_NEVER_BACK) facts.push(['Never fires back', 'attacks, but does not answer an attack']);
   if (type.slowToFire) facts.push(['Slow to fire', 'cannot attack in the half after it moved']);
+  if (type.entersAnyBuilding) facts.push(['Takes buildings', 'may use the entrance of a building that is not its side\'s']);
   if (type.buildsDepots) facts.push(['Builds depots', 'prepares the ground in one round, builds in another']);
   if (type.digsTrenches) facts.push(['Digs trenches', 'in place of attacking; its weapons only fire back']);
   facts.push(['Can enter', terrainMaskNames(type.terrainMask).join('; ') || 'nothing (does not move)']);
@@ -1004,6 +1011,7 @@ function unitCanvas(type: number, side: Side | null, facing: number): HTMLCanvas
 
 /** Shows the inside of a transport or building in the dialog. */
 function openInside(holder: Holder): void {
+  if (holder !== inside) picked = null;
   inside = holder;
   renderInside();
   if (!insideDialog.open) insideDialog.showModal();
@@ -1081,19 +1089,72 @@ function placeCard(holder: Holder, unit: Unit | undefined, number: number): HTML
   return card;
 }
 
-/** What a factory can build for its owner: each kind with its price, and a button when it can be built now. */
+/** Picks a kind in the list of what a factory can build, to show its details; the same kind again puts them away. */
+function pickChoice(type: number): void {
+  picked = picked === type ? null : type;
+  // The list is made anew: keep it where it was scrolled to, and give the keyboard's place back to the card.
+  const scrolled = insideDialog.scrollTop;
+  renderInside();
+  insideDialog.scrollTop = scrolled;
+  insideBody.querySelector<HTMLElement>(`.choice[data-type="${type}"]`)?.focus({ preventScroll: true });
+}
+
+/** What the picked kind is and can do, beside the list of what a factory can build. */
+function choiceDetails(factory: Building, owner: Side, type: number, price: number, now: boolean): HTMLElement {
+  const panel = document.createElement('div');
+  panel.className = 'choice-details';
+  const unitType = assets.unitTypes[type];
+  const points = game!.points[owner];
+  const top = document.createElement('div');
+  top.className = 'choice-top';
+  const name = document.createElement('div');
+  name.append(
+    textElement('div', 'place-name', unitName(type)),
+    // When the side has too few points, the reason under the facts says so.
+    textElement('div', 'sub', price > points ? `costs ${price} points` : `costs ${price} of the side's ${points} points`),
+  );
+  top.append(unitCanvas(type, owner, START_FACING[owner]), name);
+  panel.append(top);
+  // The price is said above, with what the side has.
+  if (unitType) panel.append(factList(unitFacts(unitType).filter(([term]) => term !== 'Cost')));
+  const blocked = now ? cannotBuildReason(game!, factory, type) : null;
+  if (now && blocked === null) panel.append(panelButton(`Build for ${price}`, () => build(factory, type)));
+  else if (blocked !== null) panel.append(textElement('p', 'sub', blocked));
+  return panel;
+}
+
+/**
+ * What a factory can build for its owner: each kind with its price, and a
+ * button when it can be built now. A click on a kind shows what it is and
+ * can do beside the list.
+ */
 function buildSection(factory: Building): HTMLElement[] {
   const choices = buildChoices(game!, factory);
   const { owner } = factory;
   if (owner === null || choices.length === 0) return [];
   const now = owner === attackerSide(game!) && !computerPlays(owner);
   const points = game!.points[owner];
+  const shown = choices.find((choice) => choice.type === picked);
   const grid = document.createElement('div');
   grid.className = 'choices';
   for (const { type, price } of choices) {
     const blocked = now ? cannotBuildReason(game!, factory, type) : null;
     const card = document.createElement('div');
     card.className = price > points ? 'choice dear' : 'choice';
+    card.dataset.type = String(type);
+    card.tabIndex = 0;
+    card.setAttribute('role', 'button');
+    card.setAttribute('aria-pressed', String(type === shown?.type));
+    card.title = `Show what ${unitName(type)} can do`;
+    card.addEventListener('click', (event) => {
+      // The "Build" button on the card builds; it does not pick.
+      if (!(event.target instanceof HTMLButtonElement)) pickChoice(type);
+    });
+    card.addEventListener('keydown', (event) => {
+      if (event.target !== card || (event.key !== 'Enter' && event.key !== ' ')) return;
+      event.preventDefault();
+      pickChoice(type);
+    });
     card.append(
       unitCanvas(type, owner, START_FACING[owner]),
       textElement('div', 'place-name', unitName(type)),
@@ -1109,7 +1170,15 @@ function buildSection(factory: Building): HTMLElement[] {
     : now
       ? `The ${OWNERS[owner]} side has ${points} points to spend in this half.`
       : `The ${OWNERS[owner]} side has ${points} points. It builds in the half in which it attacks.`;
-  return [textElement('h3', '', `Build a unit (${choices.length} kinds)`), textElement('p', 'sub', note), grid];
+  const layout = document.createElement('div');
+  layout.className = 'build';
+  layout.append(
+    grid,
+    shown
+      ? choiceDetails(factory, owner, shown.type, shown.price, now)
+      : textElement('p', 'choice-details sub', 'Click a kind to see what it is and can do.'),
+  );
+  return [textElement('h3', '', `Build a unit (${choices.length} kinds)`), textElement('p', 'sub', note), layout];
 }
 
 /** Fills the dialog with the transport or building it shows. */

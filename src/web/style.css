@@ -488,6 +488,102 @@ canvas {
   opacity: 0.5;
 }
 
+/* The kinds a factory can build, with the picked kind's details beside them. */
+.build {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 17rem;
+  align-items: start;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.build .choices {
+  margin-top: 0;
+}
+
+.choice {
+  cursor: pointer;
+}
+
+.choice:hover {
+  background: var(--hover);
+}
+
+.choice:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.choice[aria-pressed='true'] {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+  opacity: 1;
+}
+
+/* Stays in view while the list beside it scrolls. */
+.choice-details {
+  position: sticky;
+  top: 0.5rem;
+  margin: 0;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  font-size: 0.85rem;
+}
+
+.inside p.choice-details {
+  margin: 0;
+}
+
+.choice-top {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.5rem;
+}
+
+.choice-top canvas {
+  flex: none;
+  width: 48px;
+  height: 48px;
+}
+
+.choice-details .place-name {
+  font-size: 0.95rem;
+}
+
+.choice-details dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.15rem 0.6rem;
+  margin: 0;
+}
+
+.choice-details dt {
+  color: var(--muted);
+}
+
+.choice-details dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.choice-details button {
+  margin-top: 0.6rem;
+}
+
+@media (max-width: 700px) {
+  .build {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Under the list there is nothing to scroll past. */
+  .choice-details {
+    position: static;
+  }
+}
+
 @media (max-width: 700px) {
   .places {
     grid-template-columns: repeat(4, minmax(0, 1fr));

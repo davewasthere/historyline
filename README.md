@@ -44,8 +44,10 @@ side orders attacks; in the second they swap. The toolbar says which is which.
   unit in range). Click the same target again to cancel.
 - To build a unit: in the half your side attacks, click one of its factories.
   Under the places the dialog lists what the factory can build, with a "Build"
-  button for each kind the side has the points for. The new unit takes a
-  place and can move out when its side next moves.
+  button for each kind the side has the points for. Click a kind to see what
+  it is and can do beside the list: its speed, armour, weapons, where it can
+  go and what it costs. The new unit takes a place and can move out when its
+  side next moves.
 - To repair a unit: in the half your side attacks, click the building it is
   in and press "Repair" under it.
 - To build a depot: in the half your side attacks, click a construction
