@@ -144,9 +144,11 @@ it is opened. A sketch names no tiles. It says:
 - `ground`: one string for each row and one letter for each field.
   `.` grass, `,` bare ground, `o` craters, `f` forest, `h` houses,
   `^` a hill, `r` rocks, `#` barbed wire (only troops on foot cross it),
-  `t` a trench, `p` a pond, `-` shallow water, `~` deep water,
-  `*` rocks in water.
-- `roads`, `tracks`, `rails`, `rivers`: lists of paths. A path is a list of
+  `t` a ring of trench, `p` a pond, `-` shallow water, `~` deep water,
+  `*` rocks in water, `=` water with a harbour wall along the land below
+  it.
+- `roads`, `tracks`, `rails`, `rivers`, `trenches`: lists of paths. A path
+  is a list of
   fields, `[column, row]` counted from 0 at the top left; fields that are
   not neighbours are joined by the straightest run between them. Odd columns
   sit half a field lower than even ones.
@@ -157,11 +159,13 @@ it is opened. A sketch names no tiles. It says:
   entrance, a factory to the left of its entrance, a depot below it.
 - `scenery`: larger pieces by name, each placed by its topmost field:
   `hill` and `mountain` (four fields), `ridge` (two), `town` (a house
-  with two fields of street to its right).
+  with two fields of street to its right). A `dock` is placed by its yard,
+  the field a road leads into from below; its tower stands above the yard
+  and its hall to the upper left.
 - `units`: `kind` (the game's name for it, or its number), `side`, `at`
   (one field or a list of them), and `holds` for a loaded transport.
 - `tiles`: single tiles by terrain number, for what a sketch has no word
-  for, such as the footbridges and the harbour pieces.
+  for, such as the footbridges.
 - `title`, `about`, `season`, `seed` (which look each plain field gets),
   and `buildable` (the kinds factories may build; all of them if left out).
 
@@ -175,6 +179,20 @@ it is opened. A sketch names no tiles. It says:
   railway a road, a track or a river, only where the tiles have the
   crossing: a road straight up the map over a river running slantwise, for
   example. Roads cross open water on bridges; railways do not.
+- A trench runs slantwise only: straight to the upper right or the lower
+  right, or level along a row, which is a bend on every field. No piece has
+  a trench leave by the side above or below, so a line cannot run up the
+  map; a front that does is made of slanting lengths one above the other.
+  There are two forks, both with two ways out to the right. On a field of
+  wire (`#`) a straight trench has the wire along it. A field of trench
+  (`t`) on a line is a ring, which joins whatever reaches it and is what a
+  line ends on; without one the line runs to the far side of its last field.
+  A trench does not cross a road, a railway or a river: it stops either
+  side.
+- A road or track that runs straight up the map with water all along one
+  side and land along the other is a quay, and the water beside it is open
+  instead of a shore; some quays with water on the left have a berth. A
+  road that runs out into the water from below ends on the head of a jetty.
 - Shallow water beside land becomes shore. Each such field takes the shore
   tile that agrees best with the land, deep water and other shores around
   it, and the fields are gone over until none changes. The tile set has
@@ -186,7 +204,10 @@ it is opened. A sketch names no tiles. It says:
   two columns; a channel closed at the top by three fields in a row; and a
   gulf that starts one field wide in an odd column and widens by a field on
   each side every two rows. A long level coast and the foot of an island do
-  not.
+  not, with one exception: a harbour front. With land below, water in every
+  second column of a row can be sea wall (`=`), the land between the walls
+  standing level with them and open water above it. A dock's yard needs
+  open water or a shore to its upper right, not a wall.
 - Buildings and scenery are put down whole. Plain ground gets one of its
   looks, the same one every time for the same seed.
 
@@ -220,10 +241,9 @@ the computer's Germans do sail their transports across, and lose both within
 ten rounds. Two battles of 100 rounds on The Big Push gave one French win in
 round 65 and one still undecided.
 
-Not done: trench lines (a trench is one field), the harbour and quay pieces
-other than by tile number, picking a winter look (maps draw in either
-season as they are), and writing a map out in the game's own file formats.
-Whether the original would load such a file has not been tried.
+Not done: picking a winter look (maps draw in either season as they are),
+and writing a map out in the game's own file formats. Whether the original
+would load such a file has not been tried.
 
 ## Layout
 
@@ -268,10 +288,14 @@ for two players. Maps 24-47 are the same battlefields as 00-23 (same sizes,
 nearly the same terrain) with different starting units.
 
 What the tiles show (`src/maps/pieces.ts`) is in none of the game's files.
-The six sides of each tile (land, water, or a road, track, railway or river
-crossing) were read off the tiles' pictures, and the pieces that span
+The six sides of each tile (land, water, or a road, track, railway, river or
+trench crossing) were read off the tiles' pictures, and the pieces that span
 several fields off the original maps, where a headquarters, a factory, a
-depot, a hill and a mountain are always laid the same way. Checked against
+depot, a hill, a mountain and a dock are always laid the same way. The
+trench and harbour tiles were read off how the originals use them: which
+tiles lie on which side of each, and what their harbours look like drawn.
+The ring of trench with a slanting length on either side is also what the
+game's own sappers dig. Checked against
 the 72 maps: of about 193,000 pairs of neighbouring fields, all but 0.4%
 have sides that go together by this table. Most of the rest are shallow
 water straight above or below land, a shore the tile set cannot draw.

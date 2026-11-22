@@ -1,11 +1,12 @@
 // Makes a map out of a sketch of one.
 //
 // A sketch says what a map is like without naming tiles: the kind of ground
-// on each field, where the roads, tracks, railways and rivers run, where the
-// buildings and the larger pieces of scenery stand, and which units start
-// where. buildMap picks the tiles: for a road the piece that leaves the field
-// by the right sides, for shallow water beside land the shore that fits, for
-// plain ground one of its looks.
+// on each field, where the roads, tracks, railways, rivers and trenches run,
+// where the buildings and the larger pieces of scenery stand, and which
+// units start where. buildMap picks the tiles: for a road the piece that
+// leaves the field by the right sides, for a road along the water a quay,
+// for shallow water beside land the shore that fits, for plain ground one of
+// its looks.
 //
 // What it makes is what the game's own map files decode to (a GameMap and
 // its MapShops), so createGame and the viewer take it like any other map.
@@ -22,13 +23,20 @@ import {
   buildingPiece,
   DEEP_WATER,
   GROUND,
+  JETTY,
   OPEN_SHALLOW_WATER,
+  QUAY_END,
+  QUAY_WATER_LEFT,
+  QUAY_WATER_RIGHT,
   SCENERY,
+  SEA_WALL,
   SHALLOW_TILES,
   SHALLOW_WATER,
   sidesAgree,
   TILE_SIDES,
+  TRENCH_RING,
   WATER_GROUND,
+  WIRED_TRENCH,
   type BuildingKind,
   type Link,
   type Owner,
@@ -73,15 +81,25 @@ export interface MapSketch {
   /**
    * One string for each row and one letter for each field; see GROUND in
    * pieces.ts. In short: . grass , bare ground o craters f forest h houses
-   * ^ hill r rocks # barbed wire, which only troops on foot cross t trench
-   * p pond - shallow water ~ deep water * rocks in water.
+   * ^ hill r rocks # barbed wire, which only troops on foot cross t a ring
+   * of trench p pond - shallow water ~ deep water * rocks in water = water
+   * with a harbour wall along the land below it.
    */
   ground: readonly string[];
   roads?: readonly Path[];
   tracks?: readonly Path[];
   rails?: readonly Path[];
   rivers?: readonly Path[];
-  /** Larger pieces of scenery by name (see SCENERY in pieces.ts), each placed by its topmost field. */
+  /**
+   * Trench lines. They run slantwise only, never straight up or down the
+   * map. On a field of wire (#) a straight trench has its wire along it; a
+   * field of trench (t) on a line is a ring that joins whatever reaches it.
+   */
+  trenches?: readonly Path[];
+  /**
+   * Larger pieces of scenery by name (see SCENERY in pieces.ts), each placed
+   * by its topmost field; the dock by the yard a road leads into from below.
+   */
   scenery?: readonly { piece: string; at: Point }[];
   /** Single tiles by terrain number, for what the sketch has no word for. */
   tiles?: readonly { tile: number; at: Point }[];
@@ -123,11 +141,11 @@ const OWNER_NUMBER: Record<Owner, number> = { german: 0, french: 1, neutral: 2 }
 const PLACES = 7;
 
 const DIRECTION_NAMES = ['above', 'upper right', 'lower right', 'below', 'lower left', 'upper left'];
-const LINE_NAMES: Record<Link, string> = { R: 'road', T: 'track', L: 'railway', V: 'river' };
+const LINE_NAMES: Record<Link, string> = { R: 'road', T: 'track', L: 'railway', V: 'river', D: 'trench' };
 
-/** The tiles a line through a field can become, by their sides. */
+/** The tiles a line through a field can become, by their sides. The trenches with wire are picked apart from these. */
 const LINE_TILES = new Map<string, number>();
-for (const [first, last] of [[0x24, 0x2e], [0x55, 0x68], [0x6c, 0x6c], [0x6e, 0x6e], [0x72, 0x72], [0x74, 0x76], [0x79, 0x7a], [0x7f, 0xa4]] as const) {
+for (const [first, last] of [[0x24, 0x2e], [0x55, 0x68], [0x6c, 0x6c], [0x6e, 0x6e], [0x72, 0x72], [0x74, 0x76], [0x79, 0x7a], [0x7f, 0xa4], [0xa8, 0xad]] as const) {
   for (let tile = first; tile <= last; tile++) LINE_TILES.set(TILE_SIDES[tile]!, tile);
 }
 
@@ -252,6 +270,10 @@ export function buildMap(sketch: MapSketch, rules: SketchRules): BuiltMap {
         problems.push(`the railway at ${where(field)} runs into water, and there is no railway bridge over open water`);
         return;
       }
+      if (kind === 'D') {
+        problems.push(`the trench at ${where(field)} runs into water`);
+        return;
+      }
     }
     const there = links[at * DIRECTIONS + direction];
     const roads = (one: Link) => one === 'R' || one === 'T';
@@ -274,6 +296,11 @@ export function buildMap(sketch: MapSketch, rules: SketchRules): BuiltMap {
         const to = toField(fields[number]!);
         const direction = directionTo(from, to);
         if (direction < 0) continue;
+        if (kind === 'D' && direction % 3 === 0) {
+          // No trench tile has its trench leave by the side above or below.
+          problems.push(`the trench from ${where(from)} to ${where(to)} runs straight up the map; trenches only run slantwise`);
+          continue;
+        }
         link(from, direction, kind);
         link(to, opposite(direction), kind);
       }
@@ -281,8 +308,31 @@ export function buildMap(sketch: MapSketch, rules: SketchRules): BuiltMap {
   };
   lay(sketch.rivers, 'V');
   lay(sketch.rails, 'L');
+  lay(sketch.trenches, 'D');
   lay(sketch.tracks, 'T');
   lay(sketch.roads, 'R');
+
+  const seed = sketch.seed ?? 1;
+  const waterTowards = (at: number, direction: number): boolean => {
+    const near = fieldTowards(fieldOf(at), direction);
+    return onMap(near) && isWater(index(near));
+  };
+  /**
+   * The harbour piece a road's field is, if it is one: a quay where the road
+   * runs up the map with water all along one side and land along the other,
+   * the head of a jetty where it runs out into the water from below.
+   */
+  const quay = (at: number, used: readonly number[]): number | null => {
+    if (isWater(at)) return used.length === 1 && used[0] === 3 ? JETTY : null;
+    const left = waterTowards(at, 4) && waterTowards(at, 5);
+    const right = waterTowards(at, 1) && waterTowards(at, 2);
+    const dryLeft = !waterTowards(at, 4) && !waterTowards(at, 5);
+    const dryRight = !waterTowards(at, 1) && !waterTowards(at, 2);
+    if (used.length === 1 && used[0] === 0) return right && dryLeft ? QUAY_END : null;
+    if (used.length !== 2 || used[0] !== 0 || used[1] !== 3) return null;
+    if (left && dryRight) return QUAY_WATER_LEFT[Math.floor(chance(seed, at) * QUAY_WATER_LEFT.length)]!;
+    return right && dryLeft ? QUAY_WATER_RIGHT : null;
+  };
 
   for (let at = 0; at < count; at++) {
     const own = linksOf(at);
@@ -292,8 +342,16 @@ export function buildMap(sketch: MapSketch, rules: SketchRules): BuiltMap {
         if (kind === 'T') links[at * DIRECTIONS + direction] = 'R';
       });
     }
-    // Nor are there pieces a line stops on: where one ends, it runs to the far side of its last field.
     const used = own.flatMap((kind, direction) => (kind ? [direction] : []));
+    if (used.length > 0 && used.every((direction) => own[direction] === 'R' || own[direction] === 'T')) {
+      const piece = quay(at, used);
+      if (piece !== null) {
+        terrain[at] = piece;
+        settled[at] = 1;
+        continue;
+      }
+    }
+    // There are no other pieces a line stops on: where one ends, it runs to the far side of its last field.
     if (used.length === 1) {
       links[at * DIRECTIONS + opposite(used[0]!)] = links[at * DIRECTIONS + used[0]!]!;
     }
@@ -301,7 +359,6 @@ export function buildMap(sketch: MapSketch, rules: SketchRules): BuiltMap {
 
   // --- tiles ---------------------------------------------------------------
 
-  const seed = sketch.seed ?? 1;
   const look = (letter: string, at: number): number => {
     const looks = GROUND[letter]!;
     return looks[Math.floor(chance(seed, at) * looks.length)]!;
@@ -326,13 +383,19 @@ export function buildMap(sketch: MapSketch, rules: SketchRules): BuiltMap {
       terrain[at] = look(letter, at);
       continue;
     }
+    // A ring of trench on a trench line joins whatever reaches it.
+    if (letter === 't' && own.every((kind) => kind === null || kind === 'D')) {
+      terrain[at] = TRENCH_RING;
+      continue;
+    }
     const filler = isWater(at) ? 'w' : 'g';
     const tile = LINE_TILES.get(own.map((kind) => kind ?? filler).join(''));
     if (tile === undefined) {
       problems.push(`no tile has ${describe(own)} and nothing else, wanted at ${where(fieldOf(at))}`);
       terrain[at] = look(letter, at);
     } else {
-      terrain[at] = tile;
+      // A straight trench through wire has the wire along it.
+      terrain[at] = letter === '#' ? (WIRED_TRENCH[tile] ?? tile) : tile;
     }
   }
 
@@ -353,6 +416,16 @@ export function buildMap(sketch: MapSketch, rules: SketchRules): BuiltMap {
     terrain[at] = fitting[0]!;
   }
   const open = new Set(shores);
+  /**
+   * Whether a field is land along a harbour front: a sea wall lies to its
+   * upper left or upper right. The water straight above it is open, as the
+   * walls beside it draw the whole front.
+   */
+  const onFront = (field: Field): boolean =>
+    [1, 5].some((direction) => {
+      const beside = fieldTowards(field, direction);
+      return onMap(beside) && terrain[index(beside)] === SEA_WALL;
+    });
   const misfit = (at: number, tile: number): number => {
     const sides = TILE_SIDES[tile]!;
     let total = 0;
@@ -363,6 +436,7 @@ export function buildMap(sketch: MapSketch, rules: SketchRules): BuiltMap {
       const facing = TILE_SIDES[terrain[index(near)]!]![opposite(direction)]!;
       if (facing === '?') continue;
       const wanted = facing === 'w' || facing === 'V' ? 'w' : 'g';
+      if (direction === 3 && wanted === 'g' && onFront(near)) continue;
       // Land and deep water are as they are; another shore may yet change.
       if (side !== wanted) total += open.has(index(near)) ? 1 : 2;
     }
@@ -399,7 +473,8 @@ export function buildMap(sketch: MapSketch, rules: SketchRules): BuiltMap {
       const side = TILE_SIDES[terrain[at]!]![direction]!;
       const facing = TILE_SIDES[terrain[index(near)]!]![opposite(direction)]!;
       if (sidesAgree(side, facing)) continue;
-      const names: Record<string, string> = { g: 'land', w: 'water', R: 'a road', T: 'a track', L: 'a railway', V: 'a river' };
+      if (direction === 0 && side === 'g' && facing === 'w' && onFront(fieldOf(at))) continue;
+      const names: Record<string, string> = { g: 'land', w: 'water', R: 'a road', T: 'a track', L: 'a railway', V: 'a river', D: 'a trench' };
       problems.push(`${where(fieldOf(at))} and ${where(near)} do not join: ${names[side]} against ${names[facing]}`);
     }
   }

@@ -15,6 +15,10 @@ import {
   buildingPiece,
   DEEP_WATER,
   GROUND,
+  JETTY,
+  QUAY_END,
+  QUAY_WATER_LEFT,
+  QUAY_WATER_RIGHT,
   SCENERY,
   SHALLOW_TILES,
   sidesAgree,
@@ -239,11 +243,153 @@ test('the same sketch always makes the same map, and the seed changes its looks'
   assert.notDeepEqual(one.map.terrain, other.map.terrain);
 });
 
+test('a trench line gets its bends, its fork, its wire and the rings it ends on', () => {
+  const ground = grass(18, 8).ground.map((row) => [...row]);
+  for (const column of [4, 5, 6, 7]) ground[2]![column] = '#';
+  ground[4]![1] = 't';
+  ground[4]![13] = 't';
+  const built = buildMap(
+    {
+      title: 'test',
+      ground: ground.map((row) => row.join('')),
+      trenches: [
+        // Level along a row, which is a bend on every field.
+        [[0, 1], [1, 1], [2, 1], [3, 1], [4, 1], [5, 1]],
+        // Slantwise through wire.
+        [[3, 3], [9, 0]],
+        // From ring to ring, with a branch.
+        [[1, 4], [2, 5], [3, 5], [4, 6], [5, 6], [6, 6], [7, 5], [8, 5], [9, 4], [10, 4], [11, 3], [12, 4], [13, 4]],
+        [[8, 5], [9, 5], [10, 6]],
+      ],
+      buildings: [
+        { kind: 'headquarters', owner: 'german', at: [15, 0] },
+        { kind: 'headquarters', owner: 'french', at: [15, 4] },
+      ],
+    },
+    rules,
+  );
+  assert.deepEqual(built.problems, []);
+  // Where the line begins it runs to the far side of its first field; then bends, up and down.
+  assert.deepEqual([0, 1, 2, 3, 4].map((column) => tileAt(built, column, 1)), [0xab, 0xad, 0xac, 0xad, 0xac]);
+  assert.deepEqual([tileAt(built, 4, 3), tileAt(built, 5, 2), tileAt(built, 6, 2), tileAt(built, 8, 1)], [0xaa, 0xa5, 0xa5, 0xaa]);
+  // Wire the trench does not run through stays wire.
+  assert.equal(tileAt(built, 4, 2), 0x3f);
+  assert.equal(tileAt(built, 1, 4), 0xa7);
+  assert.equal(tileAt(built, 13, 4), 0xa7);
+  assert.equal(tileAt(built, 8, 5), 0xa9);
+  assert.equal(tileAt(built, 11, 3), 0xac);
+});
+
+test('a trench that cannot be dug is a problem with its field', () => {
+  const ground = grass(12, 8).ground.map((row) => [...row]);
+  ground[7]![1] = '-';
+  const built = buildMap(
+    {
+      title: 'test',
+      ground: ground.map((row) => row.join('')),
+      trenches: [
+        [[1, 1], [1, 3]],
+        [[0, 7], [1, 7]],
+        // Three ways out of 4, 5 that no fork has.
+        [[2, 6], [6, 4]],
+        [[4, 5], [3, 4]],
+      ],
+      buildings: BOTH_HEADQUARTERS,
+    },
+    rules,
+  );
+  assert.ok(built.problems.some((problem) => /the trench from 1, 1 to 1, 2 runs straight up the map/.test(problem)), built.problems.join('; '));
+  assert.ok(built.problems.some((problem) => /the trench at 1, 7 runs into water/.test(problem)), built.problems.join('; '));
+  assert.ok(built.problems.some((problem) => /no tile has a trench upper right, a trench lower left, a trench upper left and nothing else, wanted at 4, 5/.test(problem)), built.problems.join('; '));
+});
+
+test('a road up the map along the water is a quay, and one that runs out into it ends in a jetty', () => {
+  const built = buildMap(
+    {
+      title: 'test',
+      ground: [
+        '....----............',
+        '....----............',
+        '....----............',
+        '....----............',
+        '....----............',
+        '....----............',
+        '....----............',
+        '....----............',
+      ],
+      roads: [
+        [[3, 7], [3, 3], [2, 2], [2, 0]],
+        [[8, 0], [8, 5]],
+      ],
+      buildings: [
+        { kind: 'headquarters', owner: 'german', at: [15, 0] },
+        { kind: 'headquarters', owner: 'french', at: [15, 4] },
+      ],
+    },
+    rules,
+  );
+  assert.deepEqual(built.problems, []);
+  // Water on the right of the road, on both of its fields on that side.
+  for (const row of [3, 4, 5, 6]) assert.equal(tileAt(built, 3, row), 0x7d, `row ${row}`);
+  // The last field has the map's edge to its lower right, and the first two have land there.
+  assert.equal(tileAt(built, 3, 7), 0x7f);
+  assert.equal(tileAt(built, 2, 1), 0x7f);
+  // Water on the left; some of these have a berth.
+  for (const row of [1, 2, 3, 4]) assert.ok([0x77, 0x7c].includes(tileAt(built, 8, row)), `row ${row}`);
+  // The water along a quay is open, and the shore takes up again at its ends.
+  assert.deepEqual([2, 3, 4, 6, 7].map((row) => tileAt(built, 4, row)), [0x20, 0x1b, 0x19, 0x19, 0x1c]);
+
+  // A road out into the water from below ends on the head of a jetty.
+  const front = buildMap(
+    {
+      title: 'test',
+      ground: ['------------', '------------', '------------', '=.=.=.=.=.=.', '............', '............', '............', '............'],
+      roads: [[[3, 7], [3, 2]]],
+      buildings: [{ kind: 'headquarters', owner: 'german', at: [7, 5] }, { kind: 'headquarters', owner: 'french', at: [10, 5] }],
+    },
+    rules,
+  );
+  assert.deepEqual(front.problems, []);
+  assert.deepEqual([2, 3, 4].map((row) => tileAt(front, 3, row)), [0x7e, 0x7f, 0x7f]);
+});
+
+test('a harbour front has sea walls, and a dock stands on it', () => {
+  const sketch = (wall: string): MapSketch => ({
+    title: 'test',
+    ground: [
+      '------------------',
+      '------------------',
+      '------------------',
+      `${wall}.${wall}.${wall}.${wall}.-.${wall}.${wall}.${wall}.${wall}.`,
+      '..................',
+      '..................',
+      '..................',
+      '..................',
+    ],
+    roads: [[[7, 7], [7, 4]]],
+    scenery: [{ piece: 'dock', at: [7, 3] }],
+    buildings: [{ kind: 'headquarters', owner: 'german', at: [2, 5] }, { kind: 'headquarters', owner: 'french', at: [13, 5] }],
+  });
+  const built = buildMap(sketch('='), rules);
+  assert.deepEqual(built.problems, []);
+  assert.deepEqual([0, 2, 4, 10, 16].map((column) => tileAt(built, column, 3)), [0x23, 0x23, 0x23, 0x23, 0x23]);
+  // The yard the road leads into, the tower above it, the hall to its upper left.
+  assert.deepEqual([tileAt(built, 7, 3), tileAt(built, 7, 2), tileAt(built, 6, 3)], [0x78, 0x35, 0x34]);
+  // The water above the land between two walls is open; beside the dock there is a shore.
+  assert.equal(tileAt(built, 11, 2), 0x19);
+  assert.equal(tileAt(built, 8, 3), 0x1a);
+
+  // Without the walls the same coast is one no shore tile fits.
+  const bare = buildMap(sketch('-'), rules);
+  assert.ok(bare.problems.some((problem) => /do not join: (water against land|land against water)/.test(problem)));
+});
+
 test('sides that face each other: what goes together', () => {
   assert.ok(sidesAgree('R', 'R') && sidesAgree('R', 'T') && sidesAgree('T', 'g') && sidesAgree('V', 'w') && sidesAgree('?', 'w'));
+  assert.ok(sidesAgree('D', 'D') && sidesAgree('D', 'g') && !sidesAgree('D', 'R') && !sidesAgree('D', 'w'));
   assert.ok(!sidesAgree('g', 'w') && !sidesAgree('R', 'L') && !sidesAgree('R', 'w') && !sidesAgree('L', 'V'));
   assert.equal(TILE_SIDES.length, TILE_COUNT);
-  for (const sides of TILE_SIDES) assert.match(sides, /^[gwRTLV?]{6}$/);
+  for (const sides of TILE_SIDES) assert.match(sides, /^[gwRTLVD?]{6}$/);
 });
 
 // --- against the installed game ----------------------------------------------
@@ -300,7 +446,8 @@ test('the larger pieces are how the original maps lay those tiles', { skip }, as
     }
   }
   for (const [name, { whole, broken }] of found) {
-    assert.ok(whole >= 20, `${name}: found whole ${whole} times`);
+    // The originals have fourteen docks; of everything else there is more.
+    assert.ok(whole >= (name === 'dock' ? 14 : 20), `${name}: found whole ${whole} times`);
     // Only the two-field ridge is ever found apart: a few maps use one half alone.
     assert.ok(broken <= (name === 'ridge' ? whole * 0.15 : 0), `${name}: ${broken} broken, ${whole} whole`);
   }
@@ -338,7 +485,14 @@ test('the table names the terrain the game means', { skip }, async () => {
     TILE_SIDES.forEach((sides, tile) => {
       // Rails are rail wherever a railway is all that crosses the tile.
       if (/^[Lg]+$/.test(sides) && sides.includes('L')) assert.equal(terrainTypes[tile]!.terrainClass, classBit('rail'), `tile ${tile}`);
+      // Every trench piece is a trench to move through.
+      if (sides.includes('D')) assert.equal(terrainTypes[tile]!.terrainClass, classBit('trenches'), `tile ${tile}`);
     });
+    // A sea wall is water a ship can lie in; a quay, a jetty and the dock's yard are road beside it.
+    assert.deepEqual([...classes('=')], [classBit('shallow water')]);
+    for (const tile of [JETTY, QUAY_END, QUAY_WATER_RIGHT, ...QUAY_WATER_LEFT, SCENERY.dock![0]!.tile]) {
+      assert.equal(terrainTypes[tile]!.terrainClass, classBit('open ground, roads'), `tile ${tile}`);
+    }
   }
 });
 

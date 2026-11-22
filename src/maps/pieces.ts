@@ -13,12 +13,12 @@
 
 /**
  * What lies along one side of a tile: land, water, a paved road, a track, a
- * railway or a river crossing that side, or anything at all.
+ * railway, a river or a trench crossing that side, or anything at all.
  */
-export type Edge = 'g' | 'w' | 'R' | 'T' | 'L' | 'V' | '?';
+export type Edge = 'g' | 'w' | 'R' | 'T' | 'L' | 'V' | 'D' | '?';
 
 /** The kinds of line that cross a tile's side. */
-export type Link = 'R' | 'T' | 'L' | 'V';
+export type Link = 'R' | 'T' | 'L' | 'V' | 'D';
 
 export const TILE_COUNT = 175;
 
@@ -71,9 +71,22 @@ const SIDES: Record<number, string> = {
   0x0f: 'Rg???g', 0x10: 'Rg???g', 0x11: 'Rg???g',
   0x12: '??ggg?', 0x13: 'g??ggg', 0x14: 'gggg??',
   0x15: 'gg???g', 0x16: '??ggg?', 0x17: 'g??ggg', 0x18: 'gggg??',
-  // Tiles this table does not describe: the quay and the harbour pieces.
-  0x23: '??????', 0x34: '??????', 0x35: '??????', 0x77: '??????', 0x78: '??????',
-  0x7b: '??????', 0x7c: '??????', 0x7d: '??????', 0x7e: '??????', 0xae: '??????',
+  // Trenches run slantwise only: straight with wire along them (0xa5, 0xa6)
+  // and without (0xaa, 0xab), bent, forked, and the ring (0xa7) that a line
+  // ends on or that joins lines no fork does.
+  0xa5: 'gDggDg', 0xa6: 'ggDggD', 0xa7: 'g??g??', 0xa8: 'gDDggD', 0xa9: 'gDDgDg',
+  0xaa: 'gDggDg', 0xab: 'ggDggD', 0xac: 'ggDgDg', 0xad: 'gDgggD',
+  // The harbour. A sea wall: water with a wall along the land below it.
+  0x23: 'wwgggw',
+  // The dock: its hall (0x34), its tower out in the water (0x35), and the
+  // yard a road leads into from below (0x78).
+  0x34: 'w?????', 0x35: 'www??w', 0x78: '?w?R??',
+  // Quays, which are roads up the map with water along one side: on the
+  // left (0x77, and 0x7c with a berth), on the right (0x7d), and the lower
+  // end of one (0x7b). The head of a jetty, water all round (0x7e).
+  0x77: 'RggRww', 0x7c: 'R??Rww', 0x7d: 'RwwRgg', 0x7b: 'Rww???', 0x7e: 'wwwRww',
+  // The one tile this table does not describe.
+  0xae: '??????',
 };
 
 /** The six sides of every tile, by terrain number. */
@@ -93,6 +106,21 @@ export const SHALLOW_WATER = 0x19;
 /** Shallow water away from the shore, as the originals draw it beside the deep. */
 export const OPEN_SHALLOW_WATER = 0x2f;
 export const DEEP_WATER = 0x30;
+/** Water with a harbour wall along the land below it: what makes a level harbour front. */
+export const SEA_WALL = 0x23;
+
+/** The ring a trench line ends on, or that joins lines where no fork does. */
+export const TRENCH_RING = 0xa7;
+/** The straight trenches, and the same with wire along them. */
+export const WIRED_TRENCH: Readonly<Record<number, number>> = { 0xaa: 0xa5, 0xab: 0xa6 };
+
+/** The head of a jetty: a road that runs out into the water from below ends on it. */
+export const JETTY = 0x7e;
+/** The lower end of a quay with water on its right. */
+export const QUAY_END = 0x7b;
+/** A quay with water on its left; every third or so has a berth. */
+export const QUAY_WATER_LEFT: readonly number[] = [0x77, 0x77, 0x7c];
+export const QUAY_WATER_RIGHT = 0x7d;
 
 /**
  * The kinds of ground a sketch can ask for by letter, and the tiles that are
@@ -113,10 +141,11 @@ export const GROUND: Record<string, readonly number[]> = {
   '*': [0x3c, 0x3d, 0x3e],
   '-': [SHALLOW_WATER],
   '~': [DEEP_WATER],
+  '=': [SEA_WALL],
 };
 
 /** The ground letters that are water: lines cross them on bridges, and a shore forms beside them. */
-export const WATER_GROUND = '-~*';
+export const WATER_GROUND = '-~*=';
 
 export type Owner = 'german' | 'french' | 'neutral';
 
@@ -131,7 +160,10 @@ const diamond = (top: number, lowerRight: number, below: number, lowerLeft: numb
   { steps: [4], tile: lowerLeft },
 ];
 
-/** The larger pieces of scenery, each placed by its topmost field (the town by its house). */
+/**
+ * The larger pieces of scenery, each placed by its topmost field (the town
+ * by its house, the dock by the yard its road leads into).
+ */
 export const SCENERY: Record<string, Piece> = {
   hill: diamond(0x43, 0x46, 0x44, 0x45),
   mountain: diamond(0x47, 0x4a, 0x48, 0x49),
@@ -143,6 +175,11 @@ export const SCENERY: Record<string, Piece> = {
     { steps: [], tile: 0x33 },
     { steps: [1], tile: 0x69 },
     { steps: [2], tile: 0x6a },
+  ],
+  dock: [
+    { steps: [], tile: 0x78 },
+    { steps: [0], tile: 0x35 },
+    { steps: [5], tile: 0x34 },
   ],
 };
 
@@ -188,12 +225,13 @@ export function buildingPiece(kind: BuildingKind, owner: Owner): Piece | null {
 
 /**
  * Whether two sides that face each other go together. A road may end against
- * plain land, a paved road may run on as a track, and a river may run out
- * into open water; land against water is a shore with no beach drawn.
+ * plain land, as may a trench; a paved road may run on as a track, and a
+ * river may run out into open water; land against water is a shore with no
+ * beach drawn.
  */
 export function sidesAgree(one: string, other: string): boolean {
   if (one === other || one === '?' || other === '?') return true;
   const pair = one < other ? one + other : other + one;
   // Upper-case letters sort before lower-case ones.
-  return pair === 'RT' || pair === 'Vw' || pair === 'Rg' || pair === 'Tg' || pair === 'Lg' || pair === 'Vg';
+  return pair === 'RT' || pair === 'Vw' || pair === 'Rg' || pair === 'Tg' || pair === 'Lg' || pair === 'Vg' || pair === 'Dg';
 }
