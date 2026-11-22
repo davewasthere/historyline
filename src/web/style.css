@@ -214,6 +214,16 @@ select {
   cursor: pointer;
 }
 
+/* Maps that go by a name: one to a line. */
+.map-grid.named {
+  grid-template-columns: 1fr;
+}
+
+.map-grid.named button {
+  padding: 0.2rem 0.5rem;
+  text-align: left;
+}
+
 .map-grid button:hover {
   background: var(--hover);
 }

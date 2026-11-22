@@ -18,6 +18,7 @@ environment variable and defaults to the GOG install path
 | `npm test` | Runs the tests. The ones that need the game are skipped if it is not installed. |
 | `npm run typecheck` | Type-checks the project. |
 | `npm run render -- map 12` | Draws a map to `out/` as a PNG. Also `tiles` and `units`; add `--summer` or `--winter`, `--palette N`, `--no-units`, `--scale N`. |
+| `npm run sketch -- maps/mill-stream.json` | Builds a new map from its sketch, says what is wrong with it, and draws it to `out/`. Add `--play 40` to have the computer play both sides for up to 40 rounds, and `--games 6` to play that many battles. |
 | `npm run unpack` | Unpacks every data file into `unpacked/` for inspection, with a `manifest.tsv`. |
 
 ## Playing
@@ -132,6 +133,69 @@ What is and is not in yet:
   and it uses transports only to carry what they start with. The original
   has no difficulty setting for it, and neither has this.
 
+## Making maps
+
+New maps are made from sketches: JSON files in `maps/`, each of which the
+viewer lists under "New maps" and builds with the installed game's tiles when
+it is opened. A sketch names no tiles. It says:
+
+- `ground`: one string for each row and one letter for each field.
+  `.` grass, `,` bare ground, `o` craters, `f` forest, `h` houses,
+  `^` a hill, `r` rocks, `#` barbed wire (only troops on foot cross it),
+  `t` a trench, `p` a pond, `-` shallow water, `~` deep water,
+  `*` rocks in water.
+- `roads`, `tracks`, `rails`, `rivers`: lists of paths. A path is a list of
+  fields, `[column, row]` counted from 0 at the top left; fields that are
+  not neighbours are joined by the straightest run between them. Odd columns
+  sit half a field lower than even ones.
+- `buildings`: `kind` (headquarters, factory, depot), `owner` (german,
+  french, neutral), `at` (the field of its entrance), and optionally
+  `income`, `worth` (to the computer, as something to take) and `holds`
+  (the units inside). A headquarters lies around the field below its
+  entrance, a factory to the left of its entrance, a depot below it.
+- `scenery`: larger pieces by name, each placed by its topmost field:
+  `hill` and `mountain` (four fields), `ridge` (two), `town` (a house
+  with two fields of street to its right).
+- `units`: `kind` (the game's name for it, or its number), `side`, `at`
+  (one field or a list of them), and `holds` for a loaded transport.
+- `tiles`: single tiles by terrain number, for what a sketch has no word
+  for, such as the footbridges and the harbour pieces.
+- `title`, `about`, `season`, `seed` (which look each plain field gets),
+  and `buildable` (the kinds factories may build; all of them if left out).
+
+`src/maps/sketch.ts` picks the tiles:
+
+- A road, track, railway or river gets, on each field, the piece that leaves
+  it by the right sides. The tile set has bends of 120 degrees but none of
+  60, no piece a line ends on (so a line runs to the far side of its last
+  field), forks in most but not all directions, and one crossroads. Where a
+  track meets a paved road the fork is paved. A road crosses a river, and a
+  railway a road, a track or a river, only where the tiles have the
+  crossing: a road straight up the map over a river running slantwise, for
+  example. Roads cross open water on bridges; railways do not.
+- Shallow water beside land becomes shore. Each such field takes the shore
+  tile that agrees best with the land, deep water and other shores around
+  it, and the fields are gone over until none changes. The tile set has
+  eight shores, so not every coastline can be drawn: a field of water with
+  land only straight above it has no tile, and the coast has to step past
+  it. A river runs out cleanly into the head of a bay, between two shores.
+- Buildings and scenery are put down whole. Plain ground gets one of its
+  looks, the same one every time for the same seed.
+
+What does not fit is reported as a problem with its field ("no tile has a
+road above, a road upper right and nothing else, wanted at 2, 3"), and the
+map is still made, so it can be looked at. A sketch in `maps/` is expected to
+have none; a test builds each and has the computer fight on it.
+
+A map need not be fair. `--play` shows how lopsided a battle is when the
+computer plays both sides; Mill Stream is meant to be hard for the German
+side, and the computer's French win it every time.
+
+Not done: trench lines (a trench is one field), the harbour and quay pieces
+other than by tile number, picking a winter look (maps draw in either
+season as they are), and writing a map out in the game's own file formats.
+Whether the original would load such a file has not been tried.
+
 ## Layout
 
 - `src/formats` decodes the game's file formats: TPWM compression, library
@@ -142,6 +206,8 @@ What is and is not in yet:
   what a fight costs (`combat.ts`), and a game in progress with its
   buildings and transports, moves, attack orders and turns (`state.ts`), and
   saving it (`save.ts`). `computer.ts` is the computer's player.
+- `src/maps` makes maps from sketches: `pieces.ts` is the table of what
+  the tiles show, `sketch.ts` the builder. `maps` holds the sketches.
 - `src/viewer` loads the assets and draws a map.
 - `src/web` is the viewer's page.
 - `tools` holds the command-line tools.
@@ -171,6 +237,18 @@ where a map may place a unit.
 Maps: 00-47 have a `MAP\nn.COM` file and are the single-player maps; 48-71 are
 for two players. Maps 24-47 are the same battlefields as 00-23 (same sizes,
 nearly the same terrain) with different starting units.
+
+What the tiles show (`src/maps/pieces.ts`) is in none of the game's files.
+The six sides of each tile (land, water, or a road, track, railway or river
+crossing) were read off the tiles' pictures, and the pieces that span
+several fields off the original maps, where a headquarters, a factory, a
+depot, a hill and a mountain are always laid the same way. Checked against
+the 72 maps: of about 193,000 pairs of neighbouring fields, all but 0.4%
+have sides that go together by this table. Most of the rest are shallow
+water straight above or below land, a shore the tile set cannot draw.
+Terrain 0x3F, which looks like bare ground with wire on it, has a terrain
+class of two bits (deep water and mountains), so troops on foot cross it and
+vehicles do not.
 
 ### Taken from the hl1914-18 project
 

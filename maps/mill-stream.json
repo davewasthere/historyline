@@ -1,0 +1,62 @@
+{
+  "title": "Mill Stream",
+  "about": "A small battle across a river with two bridges. The French start with more of everything; the German side is the one to play.",
+  "season": "summer",
+  "seed": 7,
+  "ground": [
+    "ff.....f........ff....ff",
+    "f......ff.........f....f",
+    "...........,,........ff.",
+    "..ff.................ff.",
+    ".fff.....h......f.......",
+    "..f...........fff.......",
+    "........ff.....f........",
+    "...........f............",
+    "........................",
+    "........f..........ff...",
+    "............f......f....",
+    "........................",
+    "...-.-..ff.......,,.....",
+    ".-------.f.....h.,o.....",
+    "---------........o,.....",
+    "-~~~~~---........,..ff..",
+    "-~~~~~~--...f.......fff.",
+    "--~~~~~--...ff.......ff."
+  ],
+  "rivers": [
+    [[23, 8], [18, 9], [14, 10], [12, 11], [8, 10], [6, 11], [5, 10], [4, 11], [4, 13]]
+  ],
+  "roads": [
+    [[15, 2], [15, 1], [14, 1], [13, 1], [13, 13]]
+  ],
+  "tracks": [
+    [[13, 4], [14, 4], [19, 3], [20, 4], [20, 5], [19, 5]],
+    [[13, 7], [8, 6], [7, 6], [7, 12], [8, 13], [12, 12], [13, 12]],
+    [[13, 11], [14, 11], [18, 14], [19, 15], [18, 16]]
+  ],
+  "scenery": [
+    { "piece": "hill", "at": [3, 6] },
+    { "piece": "mountain", "at": [21, 10] },
+    { "piece": "ridge", "at": [10, 15] }
+  ],
+  "buildings": [
+    { "kind": "headquarters", "owner": "german", "at": [15, 2], "holds": ["INFANTRY", "INFANTRY"] },
+    { "kind": "factory", "owner": "german", "at": [19, 5] },
+    { "kind": "depot", "owner": "neutral", "at": [4, 2] },
+    { "kind": "depot", "owner": "neutral", "at": [20, 13] },
+    { "kind": "headquarters", "owner": "french", "at": [13, 13], "holds": ["INFANTRY", "INFANTRY", "ELITE INFANTRY"] },
+    { "kind": "factory", "owner": "french", "at": [18, 16], "income": 20 }
+  ],
+  "units": [
+    { "kind": "INFANTRY", "side": "german", "at": [[12, 5], [14, 6], [9, 5]] },
+    { "kind": "ARMOURED CAR", "side": "german", "at": [13, 5] },
+    { "kind": "LIGHT ARTILLERY", "side": "german", "at": [12, 3] },
+    { "kind": "CAVALRY", "side": "german", "at": [17, 7] },
+    { "kind": "INFANTRY", "side": "french", "at": [[12, 12], [14, 12], [8, 13], [16, 11]] },
+    { "kind": "ELITE INFANTRY", "side": "french", "at": [10, 12] },
+    { "kind": "RENAULT FT 17", "side": "french", "at": [[13, 12], [9, 13]] },
+    { "kind": "LIGHT ARTILLERY", "side": "french", "at": [11, 13] },
+    { "kind": "MEDIUM ARTILLERY", "side": "french", "at": [15, 14] },
+    { "kind": "CAVALRY", "side": "french", "at": [18, 12] }
+  ]
+}

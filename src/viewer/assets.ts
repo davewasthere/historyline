@@ -133,6 +133,10 @@ export interface MapInfo {
   season: Season;
   /** The word a player types in the game to start this map. */
   code: string;
+  /** For a map that is not the game's but made from a sketch in maps/: its name. */
+  title?: string;
+  /** For such a map, what its sketch says the battle is about. */
+  about?: string;
 }
 
 export async function listMaps(source: FileSource): Promise<MapInfo[]> {

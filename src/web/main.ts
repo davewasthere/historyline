@@ -61,6 +61,7 @@ import {
   type WorkReport,
 } from '../game/state.ts';
 import { rgbaBytes } from '../gfx/surface.ts';
+import { buildMap, type MapSketch } from '../maps/sketch.ts';
 import {
   computerSideOf,
   computerTableFor,
@@ -130,6 +131,27 @@ interface ViewState {
   palette: number;
   showUnits: boolean;
   zoom: number;
+}
+
+/**
+ * The maps that are not the game's: the sketches in maps/, each known by its
+ * file's name. They are made into maps with the game's tiles when opened.
+ */
+const sketches = new Map<string, MapSketch>(
+  Object.entries(import.meta.glob<MapSketch>('../../maps/*.json', { eager: true, import: 'default' })).map(
+    ([file, sketch]) => [file.slice(file.lastIndexOf('/') + 1, -'.json'.length), sketch],
+  ),
+);
+
+/** What is wrong with the sketch of the map last opened, in words; empty for a sound one and for the game's maps. */
+let sketchProblems: string[] = [];
+
+/** A sketch as a map. */
+function mapFromSketch(sketch: MapSketch): LoadedMap {
+  const terrainTypes = assets.tilesets[sketch.season ?? 'summer'].terrainTypes;
+  const built = buildMap(sketch, { unitTypes: assets.unitTypes, terrainTypes });
+  sketchProblems = built.problems;
+  return { map: built.map, shops: built.shops, computerTable: null };
 }
 
 let assets: GameAssets;
@@ -874,18 +896,22 @@ function renderMapList(): void {
   const groups: [string, MapInfo[]][] = [
     ['Single-player, as German', single.filter((map) => computerSideOf(map.id) === 1)],
     ['Single-player, as French', single.filter((map) => computerSideOf(map.id) === 0)],
-    ['Two-player', maps.filter((map) => !map.singlePlayer)],
+    ['Two-player', maps.filter((map) => !map.singlePlayer && !map.title)],
+    ['New maps', maps.filter((map) => map.title)],
   ];
   for (const [title, members] of groups) {
     if (members.length === 0) continue;
     const grid = document.createElement('div');
-    grid.className = 'map-grid';
+    // The game's maps go by their numbers; the new ones by their names, which need a line each.
+    grid.className = members[0]!.title ? 'map-grid named' : 'map-grid';
     for (const map of members) {
       const button = document.createElement('button');
       button.type = 'button';
-      button.textContent = map.id;
+      button.textContent = map.title ?? map.id;
       const battle = savedBattle(map.id);
-      button.title = `Map ${map.id}, ${map.season}` + (battle ? `; a battle is ${describeSave(battle)}` : '');
+      button.title =
+        (map.title ? `${map.about ?? map.title} (${map.season})` : `Map ${map.id}, ${map.season}`) +
+        (battle ? `; a battle is ${describeSave(battle)}` : '');
       if (map.season === 'winter') button.classList.add('winter');
       if (battle) button.classList.add('saved');
       if (map.id === state.mapId) button.setAttribute('aria-current', 'true');
@@ -1249,14 +1275,22 @@ function renderDetails(): void {
   details.append(
     heading('Map'),
     factList([
-      ['Map', state.mapId],
-      ['Code', info?.code ?? 'unknown'],
-      [
-        'In the game',
-        info?.singlePlayer
-          ? `one player, as the ${OWNERS[computerSideOf(state.mapId) === 0 ? 1 : 0]} side against the computer`
-          : 'two players',
-      ],
+      ...(info?.title
+        ? ([
+            ['Map', info.title],
+            ['About', info.about ?? 'nothing is said of it'],
+            ['In the game', `not one of its maps: made from the sketch maps/${info.id}.json`],
+          ] as [string, string][])
+        : ([
+            ['Map', state.mapId],
+            ['Code', info?.code ?? 'unknown'],
+            [
+              'In the game',
+              info?.singlePlayer
+                ? `one player, as the ${OWNERS[computerSideOf(state.mapId) === 0 ? 1 : 0]} side against the computer`
+                : 'two players',
+            ],
+          ] as [string, string][])),
       ['Season', seasonNote],
       ['Size', `${map.columns} × ${map.rows} fields`],
       ['German units', String(count(0))],
@@ -1355,7 +1389,9 @@ async function selectMap(id: string): Promise<void> {
   writeStateToUrl();
   renderMapList();
   try {
-    const next = await loadMap(gameFiles, id);
+    const sketch = sketches.get(id);
+    sketchProblems = [];
+    const next = sketch ? mapFromSketch(sketch) : await loadMap(gameFiles, id);
     // Another map may have been picked while this one was loading.
     if (state.mapId !== id) return;
     loaded = next;
@@ -1373,6 +1409,10 @@ async function selectMap(id: string): Promise<void> {
     notice = `The battle on this map is taken up where it was left: ${describeSave(inProgress)}. Restart begins it afresh.`;
   } else {
     startGame();
+  }
+  // Anything wrong with a new map's sketch is said in place of that.
+  if (sketchProblems.length > 0) {
+    notice = `This map's sketch has ${sketchProblems.length} problem(s): ${sketchProblems.slice(0, 3).join('; ')}.`;
   }
   showMessage(null);
   refresh();
@@ -1598,6 +1638,9 @@ async function start(): Promise<void> {
   syncControls();
   try {
     [assets, maps] = await Promise.all([loadAssets(gameFiles), listMaps(gameFiles)]);
+    for (const [id, sketch] of sketches) {
+      maps.push({ id, singlePlayer: false, season: sketch.season ?? 'summer', code: '', title: sketch.title, about: sketch.about });
+    }
   } catch (error) {
     showMessage(
       `The game's files could not be read (${(error as Error).message}). ` +
