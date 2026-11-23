@@ -1,0 +1,9 @@
+# The map viewer on http://localhost:5914. Run `npm run extract` first: the
+# image is built with the games' files in game-data/.
+services:
+  viewer:
+    build: .
+    image: historyline-viewer
+    ports:
+      - '5914:80'
+    restart: unless-stopped

@@ -1,0 +1,8 @@
+# Not needed to build the image. game-data/ is: it goes into it.
+.git
+.claude
+node_modules
+dist
+out
+unpacked
+test

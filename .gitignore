@@ -3,5 +3,8 @@
 /unpacked/
 # Rendered images of the original game's graphics.
 /out/
+# The games' files the viewer reads, copied out by `npm run extract` for
+# the Docker image; never commit them.
+/game-data/
 node_modules/
 dist/

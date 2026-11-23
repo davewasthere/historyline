@@ -15,7 +15,8 @@
     "test": "node --test \"test/**/*.test.ts\"",
     "unpack": "node tools/unpack.ts",
     "render": "node tools/render.ts",
-    "sketch": "node tools/sketch.ts"
+    "sketch": "node tools/sketch.ts",
+    "extract": "node tools/extract.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

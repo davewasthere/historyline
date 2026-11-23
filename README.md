@@ -28,6 +28,39 @@ defaults to `C:\GOG Games\Battle Isle`. Battle Isle 2's, the one that holds
 | `npm run render -- map 12` | Draws a map to `out/` as a PNG. Also `tiles` and `units`; add `--summer` or `--winter`, `--palette N`, `--no-units`, `--scale N`, and `--game isle`, `desert` or `moon` for a Battle Isle game. With `--game bi2` it draws a Battle Isle 2 mission (`map 4`), its terrain parts or its unit pictures. |
 | `npm run sketch -- maps/mill-stream.json` | Builds a new map from its sketch, says what is wrong with it, and draws it to `out/`. Add `--play 40` to have the computer play both sides for up to 40 rounds, and `--games 6` to play that many battles. |
 | `npm run unpack` | Unpacks every data file into `unpacked/` for inspection, with a `manifest.tsv`. |
+| `npm run extract` | Copies the files the viewer reads, of every game installed, into `game-data/` for the Docker image. See [Docker](#docker). |
+
+## Docker
+
+The viewer can be put into an image that needs nothing beside it: a web
+server with the built pages and the games' files the pages read.
+
+```
+npm run extract
+docker compose up --build
+```
+
+The viewer is then at http://localhost:5914. `docker build -t
+historyline-viewer .` and `docker run --rm -p 5914:80 historyline-viewer` do
+the same without Compose.
+
+`npm run extract` makes `game-data/`, which is git-ignored. It finds what to
+copy by doing what the viewer does for every game that is installed (loading
+the tiles and tables, listing the maps, loading each) and keeping the files
+that were asked for, about 3 MB in all, with a list of the files in each
+folder the viewer lists. Battle Isle 2's missions are taken off its CD
+images. The image is built from that folder and the project's sources; the
+games do not have to be installed where it runs. Run the extract again and
+rebuild after installing another game.
+
+The image holds parts of the games, so it is for your own use: do not push
+it to a registry others can pull from. Saved battles stay in the browser, as
+they do with the development server; the image keeps nothing.
+
+The image has been built from these files on no machine yet. What was
+tried is the same layout served by a plain file server: the built pages,
+with `game-data/` under `/game` and a folder answered with its
+`index.json`, which is what `docker/nginx.conf` sets up.
 
 ## Playing
 
