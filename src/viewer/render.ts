@@ -115,7 +115,7 @@ export function hexMask(tile: Bitmap): Uint8Array {
 export function fieldAt(
   x: number,
   y: number,
-  map: GameMap,
+  map: Pick<GameMap, 'columns' | 'rows'>,
   mask: Uint8Array,
 ): { column: number; row: number } | null {
   // A pixel can only belong to the column it falls in by COLUMN_STEP or to the

@@ -6,13 +6,16 @@ game; none of the game's files are part of this project, and `unpacked/` and
 `out/` (which hold copies of its graphics) are git-ignored.
 
 The same tools read the game History Line came out of, Battle Isle, with its
-two data disks: see [Battle Isle](#battle-isle) below.
+two data disks: see [Battle Isle](#battle-isle) below. Battle Isle 2's maps
+can be looked at, not played: see [Battle Isle 2](#battle-isle-2).
 
 Needs Node 24 or later. The game folder is taken from the `HL_GAME_DIR`
 environment variable and defaults to the GOG install path
 `C:\GOG Games\Battle Isle Historyline 1914-1918`. Battle Isle's folder, the
 one that holds `ISLE`, `DESERT` and `MOON`, is taken from `BI_GAME_DIR` and
-defaults to `C:\GOG Games\Battle Isle`.
+defaults to `C:\GOG Games\Battle Isle`. Battle Isle 2's, the one that holds
+`ISLE2` and `SCENERY`, is taken from `BI2_GAME_DIR` and defaults to
+`C:\GOG Games\Battle Isle 2`.
 
 ## Commands
 
@@ -22,7 +25,7 @@ defaults to `C:\GOG Games\Battle Isle`.
 | `npm run dev` | Starts the map viewer at http://localhost:5914. |
 | `npm test` | Runs the tests. The ones that need the game are skipped if it is not installed. |
 | `npm run typecheck` | Type-checks the project. |
-| `npm run render -- map 12` | Draws a map to `out/` as a PNG. Also `tiles` and `units`; add `--summer` or `--winter`, `--palette N`, `--no-units`, `--scale N`, and `--game isle`, `desert` or `moon` for a Battle Isle game. |
+| `npm run render -- map 12` | Draws a map to `out/` as a PNG. Also `tiles` and `units`; add `--summer` or `--winter`, `--palette N`, `--no-units`, `--scale N`, and `--game isle`, `desert` or `moon` for a Battle Isle game. With `--game bi2` it draws a Battle Isle 2 mission (`map 4`), its terrain parts or its unit pictures. |
 | `npm run sketch -- maps/mill-stream.json` | Builds a new map from its sketch, says what is wrong with it, and draws it to `out/`. Add `--play 40` to have the computer play both sides for up to 40 rounds, and `--games 6` to play that many battles. |
 | `npm run unpack` | Unpacks every data file into `unpacked/` for inspection, with a `manifest.tsv`. |
 
@@ -206,8 +209,47 @@ that fills two fields has its second half where History Line's rule puts it
 16 of The Moon. Each game's `AMOK.DAT` names the entrances its terrain table
 has. The computer plays both sides of every map for six rounds in the tests.
 
-Battle Isle 2 is another program with other files (layered terrain, another
-unit table, maps on its CD image) and is not read.
+## Battle Isle 2
+
+Battle Isle 2 (1994) and its add-on, the Scenery disk, are a later program
+with files of their own, and its rules have weather, fuel, ammunition, four
+weapons to a unit and up to seven players. None of `src/game` fits it. What
+this project does with it is draw its missions. The two disks are one game
+here: the viewer's "Game" list has Battle Isle 2 once, marked "maps only",
+on a page of its own (`bi2.html`) that lists the missions of both with their
+names, tasks and passwords, shows a map, and says what is on a field.
+`npm run render -- --game bi2 map 4` draws one to `out/`. The add-on has the
+game's terrain parts and unit kinds unchanged and six unit kinds more, and
+no mission number is used by both, so one set of tiles draws them all; with
+only one disk installed its missions are shown.
+
+The missions are not in the installed folder. They are on the CD image the
+GOG install keeps beside the game (`BI2.gog`, `BI2scen.gog`), which is read
+in place (`tools/cdImage.ts`): what the folder does not have is taken from
+the image.
+
+What is read, all of it worked out from the files and none of it checked
+against the running game (`src/bi2/formats.ts` has the layouts):
+
+- The libraries are History Line's archives with eight more header bytes,
+  and nothing in them is packed.
+- Terrain parts, road pieces and unit pictures are bare 24x24 tiles.
+- A mission's map is three grids: the ground, what stands on it, and the
+  units, each with its kind and one bit for its owner. The fields are laid
+  out as History Line's.
+- Roads, paths, trenches and rails are not pictures on the map. A field says
+  which of them it has, and one of 24 pieces is drawn by which of the fields
+  around it have the same, mirrored as needed.
+- Mission names, tasks and passwords, and the unit kinds' names, from the
+  game's text files.
+
+Guesses in what is drawn: that a way joins a neighbouring field only when
+that has the same kind of way (roads stop a field short of some buildings,
+so the program joins them to more); which colours are which player's; and
+that the five pictures each part has are for five kinds of weather, which
+the page's "Ground" list lets one try. Not read: which way a unit faces
+(all face up the map), who owns a building and what is in it, the unit
+table, and the mission's other sections.
 
 ## Making maps
 
@@ -322,6 +364,8 @@ would load such a file has not been tried.
 ## Layout
 
 - `src/games.ts` lists the games read and what differs between their files.
+- `src/bi2` reads and draws Battle Isle 2's missions; `src/web/bi2.ts` is
+  its page.
 - `src/formats` decodes the game's file formats: TPWM compression, library
   archives, sprites, palettes, maps, building files and the unit table.
 - `src/gfx` is a software RGBA surface; the browser and the PNG tool draw
@@ -335,7 +379,8 @@ would load such a file has not been tried.
   the tiles show, `sketch.ts` the builder. `maps` holds the sketches.
 - `src/viewer` loads the assets and draws a map.
 - `src/web` is the viewer's page.
-- `tools` holds the command-line tools.
+- `tools` holds the command-line tools, and what reads the games from disk
+  for them and for the development server.
 
 ## What is known and what is not
 

@@ -9,6 +9,10 @@
 // A map is drawn in its own season unless --summer or --winter is given; the
 // Battle Isle games have one set of tiles and no seasons.
 // Output goes to out/ unless --out is given.
+//
+// With --game bi2 the same three commands draw Battle Isle 2's missions (by
+// their three-digit numbers, the add-on's among them), terrain parts and unit
+// pictures; of the options only --no-units, --scale and --out apply.
 
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
@@ -19,7 +23,8 @@ import { blit, createSurface, type Surface } from '../src/gfx/surface.ts';
 import { seasonsOf } from '../src/games.ts';
 import { FACINGS, listMaps, loadAssets, loadMap, type Season } from '../src/viewer/assets.ts';
 import { renderMap } from '../src/viewer/render.ts';
-import { diskFiles, gameNamed } from './gameFiles.ts';
+import { diskFiles, gameNamed, namesBi2 } from './gameFiles.ts';
+import { renderBi2 } from './renderBi2.ts';
 import { encodePng } from './png.ts';
 
 const { values, positionals } = parseArgs({
@@ -39,6 +44,22 @@ const [command, argument] = positionals;
 const forcedSeason: Season | null = values.winter ? 'winter' : values.summer ? 'summer' : null;
 const scale = Number(values.scale);
 if (!Number.isInteger(scale) || scale < 1) throw new Error('--scale must be a positive whole number');
+
+/** Writes a picture to out/, or to where --out says. */
+async function writePicture(surface: Surface, name: string): Promise<void> {
+  const target = resolve(values.out ?? join(import.meta.dirname, '..', 'out', name));
+  await mkdir(dirname(target), { recursive: true });
+  await writeFile(target, encodePng(surface, scale));
+  console.log(`wrote ${target} (${surface.width * scale} x ${surface.height * scale})`);
+}
+
+// Battle Isle 2 is another program with files of its own: it is drawn by its own code.
+if (namesBi2(values.game)) {
+  const picture = await renderBi2(command, argument, !values['no-units']);
+  console.log(picture.about);
+  await writePicture(picture.surface, picture.name);
+  process.exit(0);
+}
 
 const profile = gameNamed(values.game);
 if (forcedSeason && !seasonsOf(profile).includes(forcedSeason)) {
@@ -118,7 +139,4 @@ switch (command) {
     throw new Error('usage: render.ts map <id> | tiles | units');
 }
 
-const target = resolve(values.out ?? join(import.meta.dirname, '..', 'out', name));
-await mkdir(dirname(target), { recursive: true });
-await writeFile(target, encodePng(surface, scale));
-console.log(`wrote ${target} (${surface.width * scale} x ${surface.height * scale})`);
+await writePicture(surface, name);

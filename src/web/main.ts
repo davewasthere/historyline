@@ -76,6 +76,7 @@ import {
   type Season,
 } from '../viewer/assets.ts';
 import { fieldAt, fieldOrigin, hexMask, renderMap, renderUnit, TILE_SIZE } from '../viewer/render.ts';
+import { installedGameIds, openGame, showGameList } from './gameList.ts';
 
 /**
  * The game whose maps are shown: the one the URL names, else History Line.
@@ -103,18 +104,6 @@ const gameFiles: FileSource = {
     return (await response.json()) as string[];
   },
 };
-
-/** The games the development server finds installed; just this one if it cannot say. */
-async function installedGames(): Promise<GameId[]> {
-  try {
-    const response = await fetch('/game/');
-    const ids: unknown = response.ok ? await response.json() : [];
-    const known = Array.isArray(ids) ? ids.filter(isGameId) : [];
-    return known.length > 0 ? known : [gameId];
-  } catch {
-    return [gameId];
-  }
-}
 
 function element<T extends HTMLElement>(id: string): T {
   const found = document.getElementById(id);
@@ -1743,19 +1732,9 @@ for (const control of [...seasonInputs, unitsCheckbox, zoomSelect, paletteSelect
 }
 
 /** Fits the page's controls to the game: its name, its sides, its colours, and whether it has seasons. */
-function nameControls(games: readonly GameId[]): void {
+function nameControls(games: readonly string[]): void {
   document.title = `${profile.title} map viewer`;
-  gameSelect.replaceChildren(
-    ...games.map((id) => {
-      const option = document.createElement('option');
-      option.value = id;
-      option.textContent = GAMES[id].title;
-      return option;
-    }),
-  );
-  gameSelect.value = gameId;
-  // A game on its own needs no choosing.
-  gameSelect.parentElement!.hidden = games.length < 2;
+  showGameList(gameSelect, gameId, games);
   seasonControl.hidden = !hasSeasons;
   [...paletteSelect.options].forEach((option, index) => {
     option.textContent = profile.palettes[index] ?? option.textContent;
@@ -1766,19 +1745,11 @@ function nameControls(games: readonly GameId[]): void {
   }
 }
 
-gameSelect.addEventListener('change', () => {
-  if (!isGameId(gameSelect.value) || gameSelect.value === gameId) return;
-  // Everything on the page belongs to the game it was loaded for, so another game gets a page of its own.
-  location.hash = gameSelect.value === 'historyline' ? '' : `game=${gameSelect.value}`;
-  location.reload();
-});
-
 async function start(): Promise<void> {
-  const games = await installedGames();
+  const games = await installedGameIds(gameId);
   if (!games.includes(gameId)) {
     // The game the URL names is not there; one that is takes its place.
-    location.hash = games[0] === 'historyline' ? '' : `game=${games[0]}`;
-    location.reload();
+    openGame(games[0]!);
     return;
   }
   nameControls(games);
