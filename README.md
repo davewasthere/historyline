@@ -453,3 +453,11 @@ Not known yet:
 - Bytes 1 and 5 of a `MAP\nn.COM` record, which the game does not read.
 - Whether a player of the original sees the other side's units move during a
   half. Here the computer's moves are made as the half begins and are seen.
+
+## Licence
+
+The code, the tests and the maps in `maps/` are under the MIT licence; see
+`LICENSE`. That covers what is in this repository and nothing of the game:
+its graphics, maps and other data are not here, and belong to whoever holds
+the rights to Historyline 1914-1918. An owned copy of the game is needed to
+run any of this.
