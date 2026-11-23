@@ -235,11 +235,12 @@ test('the two disks make one game: the missions of both, drawn with one set of t
   assert.equal(game.missions.length, EXPECTED.bi2.missions + EXPECTED.bi2scenery.missions);
   // No two missions share a number, so a number names one whichever disk it is on.
   assert.equal(new Set(game.missions.map((info) => info.id)).size, game.missions.length);
-  // The game's own missions come first.
-  assert.deepEqual(game.missions.map((info) => info.disk), [
-    ...Array<unknown>(EXPECTED.bi2.missions).fill(BI2_DISKS[0]),
-    ...Array<unknown>(EXPECTED.bi2scenery.missions).fill(BI2_DISKS[1]),
-  ]);
+  // They are in one list by number, the add-on's among the game's own: 017 is the add-on's, 016 and 021 the game's.
+  const ids = game.missions.map((info) => info.id);
+  assert.deepEqual(ids, ids.toSorted((a, b) => Number(a) - Number(b)));
+  const around = game.missions.slice(ids.indexOf('016'), ids.indexOf('021') + 1);
+  assert.deepEqual(around.map((info) => `${info.id} ${info.disk.id}`), ['016 bi2', '017 bi2scenery', '019 bi2scenery', '021 bi2']);
+  assert.equal(game.missions.filter((info) => info.disk === BI2_DISKS[0]).length, EXPECTED.bi2.missions);
   // The tiles are the add-on's, which has the game's unit kinds unchanged and six more.
   assert.equal(game.assets.unitNames.length, EXPECTED.bi2scenery.kinds);
   const own = await loadBi2Assets(bi2Files(BI2_DISKS[0]!));
@@ -248,7 +249,7 @@ test('the two disks make one game: the missions of both, drawn with one set of t
   own.parts.forEach((part, number) => assert.deepEqual(game.assets.parts[number]!.pixels, part.pixels));
   assert.deepEqual(game.assets.partTable, own.partTable);
   // A mission is read from the disk it is on.
-  for (const info of [game.missions[0]!, game.missions.at(-1)!]) {
+  for (const info of [game.missions[0]!, around[1]!, game.missions.at(-1)!]) {
     assert.deepEqual(await game.loadMission(info), await loadMission(bi2Files(info.disk), info.id));
   }
 });

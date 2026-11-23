@@ -107,7 +107,7 @@ export async function loadMission(source: FileSource, id: string): Promise<Missi
 /** Battle Isle 2 as installed: the missions of every disk that is there, and one set of tiles for all of them. */
 export interface Bi2Game {
   assets: Bi2Assets;
-  /** The game's missions, then the add-on's. */
+  /** The missions of every disk in one list, in the order of their numbers. */
   missions: MissionInfo[];
   /** Reads a mission's map from the disk it is on. */
   loadMission(info: MissionInfo): Promise<Mission>;
@@ -135,7 +135,7 @@ export async function loadBi2Game(disks: readonly { disk: Bi2Disk; source: FileS
   const sources = new Map(found.flatMap(({ source, missions }) => missions.map((info) => [info, source] as const)));
   return {
     assets: await loadBi2Assets(last.source),
-    missions: found.flatMap((entry) => entry.missions),
+    missions: found.flatMap((entry) => entry.missions).sort((a, b) => Number(a.id) - Number(b.id)),
     loadMission: (info) => {
       const source = sources.get(info);
       if (!source) throw new Error(`mission ${info.id} is not one of this game's`);

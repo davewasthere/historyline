@@ -26,7 +26,7 @@ export type Bi2DiskId = 'bi2' | 'bi2scenery';
 
 export interface Bi2Disk {
   id: Bi2DiskId;
-  /** What its missions are listed under. */
+  /** What a mission is said to be from. */
   title: string;
   /** The disk's folder inside the Battle Isle 2 install. */
   folder: string;

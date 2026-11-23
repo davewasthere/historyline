@@ -249,8 +249,9 @@ with files of their own, and its rules have weather, fuel, ammunition, four
 weapons to a unit and up to seven players. None of `src/game` fits it. What
 this project does with it is draw its missions. The two disks are one game
 here: the viewer's "Game" list has Battle Isle 2 once, marked "maps only",
-on a page of its own (`bi2.html`) that lists the missions of both with their
-names, tasks and passwords, shows a map, and says what is on a field.
+on a page of its own (`bi2.html`) that lists the missions of both in one
+list by number, with their names, tasks and passwords, shows a map, and says
+what is on a field.
 `npm run render -- --game bi2 map 4` draws one to `out/`. The add-on has the
 game's terrain parts and unit kinds unchanged and six unit kinds more, and
 no mission number is used by both, so one set of tiles draws them all; with

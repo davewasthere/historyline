@@ -165,24 +165,21 @@ function drawOverlay(): void {
 }
 
 function renderMapList(): void {
-  mapList.replaceChildren();
-  // One list for the whole game, the add-on's missions after the game's own.
-  for (const disk of BI2_DISKS) {
-    const members = missions.filter((info) => info.disk === disk);
-    if (members.length === 0) continue;
-    const grid = document.createElement('div');
-    grid.className = 'map-grid named';
-    for (const info of members) {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.textContent = info.title ? `${info.id} ${info.title}` : info.id;
-      button.title = [info.about, info.password && `password ${info.password}`].filter(Boolean).join('; ');
-      if (info.id === state.missionId) button.setAttribute('aria-current', 'true');
-      button.addEventListener('click', () => void selectMission(info.id));
-      grid.append(button);
-    }
-    mapList.append(heading(`${disk.title} (${members.length})`), grid);
+  // One list for the whole game, by mission number: the add-on's missions stand among the game's own.
+  const grid = document.createElement('div');
+  grid.className = 'map-grid named';
+  for (const info of missions) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = info.title ? `${info.id} ${info.title}` : info.id;
+    button.title = [info.about, info.password && `password ${info.password}`, `from ${info.disk.title.toLowerCase()}`]
+      .filter(Boolean)
+      .join('; ');
+    if (info.id === state.missionId) button.setAttribute('aria-current', 'true');
+    button.addEventListener('click', () => void selectMission(info.id));
+    grid.append(button);
   }
+  mapList.replaceChildren(heading(`Missions (${missions.length})`), grid);
 }
 
 function renderDetails(): void {
