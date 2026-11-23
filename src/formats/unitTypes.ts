@@ -40,6 +40,15 @@
 // the file has 3, gives trains and large ships a group size of 1 where the
 // file has 6, and gives trains a weight where the file has 0.
 //
+// Battle Isle's table (27 kinds in each of its three games) has the same
+// record without its first byte, 68 bytes: it has no movement budget apart
+// from the speed, and a unit there moves on its speed. The two names are the
+// other way round, the model first and the kind of unit after it. Bit 13 of
+// the word at byte 17 is set for three of its transports and means something
+// else there; Battle Isle has no trenches. Its ships have a group size of 1
+// and a 6 in the byte after it, which History Line leaves at 0. Battle Isle's
+// numbers were not checked against its manual.
+//
 // The terrain mask follows the manual's seven kinds of terrain and holds for
 // every train and ship placed on the game's maps. The movement budget and the
 // flag bits in bytes 6, 13 to 15 and 17 to 20 are as the hl1914-18 project's
@@ -51,6 +60,11 @@ import { paddedText } from './bytes.ts';
 import { unpackIfPacked } from './tpwm.ts';
 
 const RECORD_SIZE = 69;
+/** Battle Isle's record: History Line's without the movement budget in front. */
+const BATTLE_ISLE_RECORD_SIZE = RECORD_SIZE - 1;
+
+/** Which game's unit table a file is. */
+export type UnitLayout = 'historyline' | 'battleisle';
 const CANNOT_BE_BUILT = 255;
 const LOAD_CLASS_BITS = 0x0fc0;
 
@@ -112,21 +126,27 @@ export interface UnitType {
   raw: Uint8Array;
 }
 
-export function decodeUnitTypes(file: Uint8Array): UnitType[] {
+export function decodeUnitTypes(file: Uint8Array, layout: UnitLayout = 'historyline'): UnitType[] {
   const data = unpackIfPacked(file);
-  if (data.length % RECORD_SIZE !== 0) {
-    throw new Error(`unit table length ${data.length} is not a multiple of ${RECORD_SIZE}`);
+  const battleIsle = layout === 'battleisle';
+  const size = battleIsle ? BATTLE_ISLE_RECORD_SIZE : RECORD_SIZE;
+  if (data.length % size !== 0) {
+    throw new Error(`unit table length ${data.length} is not a multiple of ${size}`);
   }
   const types: UnitType[] = [];
-  for (let at = 0; at < data.length; at += RECORD_SIZE) {
-    const raw = data.subarray(at, at + RECORD_SIZE);
+  for (let at = 0; at < data.length; at += size) {
+    const stored = data.subarray(at, at + size);
+    // A Battle Isle record is read as History Line's, with its speed as its budget.
+    const raw = battleIsle ? Uint8Array.of(stored[0]!, ...stored) : stored;
+    const first = paddedText(raw, 27, 17).trim();
+    const second = paddedText(raw, 44, 19).trim();
     const weapon = (rangeByte: number, powerByte: number): Weapon | null => {
       const power = raw[powerByte]!;
       return power === 0 ? null : { range: Math.max(0, raw[rangeByte]! - 1), power };
     };
     types.push({
-      className: paddedText(raw, 27, 17),
-      name: paddedText(raw, 44, 19),
+      className: battleIsle ? second : first,
+      name: battleIsle ? first : second,
       movementBudget: raw[0]!,
       speed: raw[1]!,
       armour: raw[2]!,
@@ -144,13 +164,13 @@ export function decodeUnitTypes(file: Uint8Array): UnitType[] {
       cost: raw[63] === CANNOT_BE_BUILT ? null : raw[63]!,
       price: raw[63]!,
       buildsDepots: (raw[18]! & 0x40) !== 0,
-      digsTrenches: (raw[18]! & 0x20) !== 0,
+      digsTrenches: !battleIsle && (raw[18]! & 0x20) !== 0,
       slowToFire: (raw[15]! & 0x01) !== 0,
       capacity: raw[64]!,
       weight: raw[65]!,
       loadClasses: (raw[17]! | (raw[18]! << 8)) & LOAD_CLASS_BITS,
       carries: (raw[19]! | (raw[20]! << 8)) & LOAD_CLASS_BITS,
-      raw,
+      raw: stored,
     });
   }
   return types;

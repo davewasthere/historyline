@@ -1,16 +1,17 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { defineConfig, type Plugin } from 'vite';
-import { gameDir, resolveInGame } from './tools/gameFiles.ts';
+import { isGameId, GAMES } from './src/games.ts';
+import { gameDir, installedGames, resolveInGame } from './tools/gameFiles.ts';
 
 /**
- * Serves the installed game's files to the viewer during development:
- *   GET /game/<path>    the file's bytes
- *   GET /game/<folder>/ a JSON array of the file names in that folder
- * Nothing is copied into the project; files are read from the game folder on
- * each request.
+ * Serves the installed games' files to the viewer during development:
+ *   GET /game/                   a JSON array of the games that are installed
+ *   GET /game/<game>/<path>      the file's bytes
+ *   GET /game/<game>/<folder>/   a JSON array of the file names in that folder
+ * <game> is one of the ids in src/games.ts. Nothing is copied into the
+ * project; files are read from the game's folder on each request.
  */
 function gameFiles(): Plugin {
-  const root = gameDir();
   return {
     name: 'historyline-game-files',
     configureServer(server) {
@@ -22,11 +23,22 @@ function gameFiles(): Plugin {
             return;
           }
           const path = decodeURIComponent((request.url ?? '/').split('?')[0]!).replace(/^\/+/, '');
-          const full = resolveInGame(root, path);
-          if (path === '' || path.endsWith('/')) {
-            const entries = await readdir(full, { withFileTypes: true });
+          const json = (value: unknown) => {
             response.setHeader('Content-Type', 'application/json');
-            response.end(JSON.stringify(entries.filter((entry) => entry.isFile()).map((entry) => entry.name)));
+            response.end(JSON.stringify(value));
+          };
+          if (path === '') {
+            json(installedGames().map((profile) => profile.id));
+            return;
+          }
+          const slash = path.indexOf('/');
+          const game = slash < 0 ? path : path.slice(0, slash);
+          if (!isGameId(game)) throw new Error('no such game');
+          const inside = slash < 0 ? '' : path.slice(slash + 1);
+          const full = resolveInGame(gameDir(GAMES[game]), inside);
+          if (inside === '' || inside.endsWith('/')) {
+            const entries = await readdir(full, { withFileTypes: true });
+            json(entries.filter((entry) => entry.isFile()).map((entry) => entry.name));
             return;
           }
           if (!(await stat(full)).isFile()) throw new Error('not a file');

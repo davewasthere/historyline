@@ -5,9 +5,14 @@ that plays it. Everything reads the data files of an installed copy of the
 game; none of the game's files are part of this project, and `unpacked/` and
 `out/` (which hold copies of its graphics) are git-ignored.
 
+The same tools read the game History Line came out of, Battle Isle, with its
+two data disks: see [Battle Isle](#battle-isle) below.
+
 Needs Node 24 or later. The game folder is taken from the `HL_GAME_DIR`
 environment variable and defaults to the GOG install path
-`C:\GOG Games\Battle Isle Historyline 1914-1918`.
+`C:\GOG Games\Battle Isle Historyline 1914-1918`. Battle Isle's folder, the
+one that holds `ISLE`, `DESERT` and `MOON`, is taken from `BI_GAME_DIR` and
+defaults to `C:\GOG Games\Battle Isle`.
 
 ## Commands
 
@@ -17,7 +22,7 @@ environment variable and defaults to the GOG install path
 | `npm run dev` | Starts the map viewer at http://localhost:5914. |
 | `npm test` | Runs the tests. The ones that need the game are skipped if it is not installed. |
 | `npm run typecheck` | Type-checks the project. |
-| `npm run render -- map 12` | Draws a map to `out/` as a PNG. Also `tiles` and `units`; add `--summer` or `--winter`, `--palette N`, `--no-units`, `--scale N`. |
+| `npm run render -- map 12` | Draws a map to `out/` as a PNG. Also `tiles` and `units`; add `--summer` or `--winter`, `--palette N`, `--no-units`, `--scale N`, and `--game isle`, `desert` or `moon` for a Battle Isle game. |
 | `npm run sketch -- maps/mill-stream.json` | Builds a new map from its sketch, says what is wrong with it, and draws it to `out/`. Add `--play 40` to have the computer play both sides for up to 40 rounds, and `--games 6` to play that many battles. |
 | `npm run unpack` | Unpacks every data file into `unpacked/` for inspection, with a `manifest.tsv`. |
 
@@ -135,6 +140,75 @@ What is and is not in yet:
   and it uses transports only to carry what they start with. The original
   has no difficulty setting for it, and neither has this.
 
+## Battle Isle
+
+Battle Isle (1991) is three games installed side by side, each with its own
+maps, tiles and unit table: Battle Isle itself (`ISLE`), its first data disk
+The Desert (`DESERT`) and its second, The Moon of Chromos (`MOON`). Each has
+34 maps and 27 unit kinds. The viewer's "Game" list has every game it finds
+installed; picking one loads the page for it, and the game is part of the
+address (`#game=isle`). The tools take `--game isle`, `desert` or `moon`.
+
+Their files are History Line's with these differences, all found by reading
+the files (`src/games.ts` has the list, the decoders in `src/formats` the
+details):
+
+- One set of tiles and one terrain table (`LIB\PART.LIB`, `GROUND.DAT`), no
+  seasons. The Moon has no lists of tile and unit picture names: the
+  libraries' entries are numbered by their names.
+- A unit record is History Line's without its first byte, the movement
+  budget. A unit here moves on its speed: Battle Isle's terrain costs are
+  half of History Line's.
+- The 4-bit pictures give their width in bytes, and name themselves by their
+  library entry. The Desert's tiles all claim colour 0 as the one that is not
+  drawn; the colour of a tile's corner is used instead, for every game.
+- A map's `.SHP` file lists 27 kinds. One of them (Battle Isle, map 11) is of
+  an older form without the buildings' worth.
+- The first two games' `.COM` files have their bits in the other byte order.
+  Many of them mark no kind as one the computer builds; on those maps the
+  computer picks from every armed kind the map allows.
+- The terrain numbers a construction unit leaves behind, which differ in each
+  game, are read from its `AMOK.DAT`.
+
+Battles are played by History Line's rules. Battle Isle's program is the
+older version of the same one, with the same tables where they could be
+compared (the terrain table's bits, the fields a depot can be built on),
+but none of its rules were traced, and these points are assumptions:
+
+- A unit leaving a building or a transport gets half of History Line's
+  budget, as the terrain costs are halved: one field of open ground or two of
+  road.
+- The ground's part in a fight. A terrain record's last byte is, in Battle
+  Isle, the picture a fight there is shown on (mountains, bridge, road, wall,
+  water, plain, forest), and the table of what each adds to attack and
+  defence was not found in its program. Mountains, bridges, roads, water and
+  forest get History Line's numbers for them; walls and plains add nothing.
+  History Line's bonus for units around a fight is used as it is, though its
+  table of percentages is not in Battle Isle's program either.
+- The original's computer is taken to play the second side on every
+  single-player map.
+- The games' files do not name the sides. They are called Player 1 (the side
+  on the left of the original's split screen) and Player 2.
+
+Not in: collecting Aldinium (the crystals are units that cannot move, can be
+carried and can be shot at, and that is all they are here) and whatever
+makes a mine a mine (the program has a "MINE DISABLED" message). Bit 13 of a
+unit record's word at byte 17, the sappers' in History Line, is set for some
+transports here and is not read. New maps from sketches are for History
+Line's tiles only. Battle Isle's manual was not at hand, so its unit numbers
+and the names given to its terrain classes are unchecked.
+
+What was checked, on all 102 maps: every terrain number has a tile and a
+record, every unit code a kind, and every map a headquarters for each side.
+Of about 5,500 units, 9 start on ground their kind cannot enter. Every unit
+that fills two fields has its second half where History Line's rule puts it
+(a row above the first side's, a row below the second's), except one on map
+16 of The Moon. Each game's `AMOK.DAT` names the entrances its terrain table
+has. The computer plays both sides of every map for six rounds in the tests.
+
+Battle Isle 2 is another program with other files (layered terrain, another
+unit table, maps on its CD image) and is not read.
+
 ## Making maps
 
 New maps are made from sketches: JSON files in `maps/`, each of which the
@@ -247,6 +321,7 @@ would load such a file has not been tried.
 
 ## Layout
 
+- `src/games.ts` lists the games read and what differs between their files.
 - `src/formats` decodes the game's file formats: TPWM compression, library
   archives, sprites, palettes, maps, building files and the unit table.
 - `src/gfx` is a software RGBA surface; the browser and the PNG tool draw
@@ -254,7 +329,8 @@ would load such a file has not been tried.
 - `src/game` holds the game's rules: where a unit can move (`movement.ts`),
   what a fight costs (`combat.ts`), and a game in progress with its
   buildings and transports, moves, attack orders and turns (`state.ts`), and
-  saving it (`save.ts`). `computer.ts` is the computer's player.
+  saving it (`save.ts`). `computer.ts` is the computer's player, and
+  `rules.ts` has the numbers that differ between the games.
 - `src/maps` makes maps from sketches: `pieces.ts` is the table of what
   the tiles show, `sketch.ts` the builder. `maps` holds the sketches.
 - `src/viewer` loads the assets and draws a map.

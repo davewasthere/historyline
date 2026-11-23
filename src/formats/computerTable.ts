@@ -1,5 +1,5 @@
 // MAP\nn.COM: what the computer's player knows about each unit kind on a
-// single-player map. Six bytes for each of the 51 kinds:
+// single-player map. Six bytes for each unit kind:
 //
 //   offset  field
 //    0      what a unit of this kind is worth as a target (signed)
@@ -20,6 +20,11 @@
 // come in four versions: maps 00 to 20 share one, in which the kinds the
 // computer builds are French; most of the rest share another, in which they
 // are German.
+//
+// Battle Isle and its first data disk, The Desert, store the bits the other
+// way round, the high byte first, as their map files do their sizes, and
+// many of their tables mark no kind as one the computer builds. The Moon of
+// Chromos, which came out after History Line, has History Line's form.
 
 import { unpackIfPacked } from './tpwm.ts';
 
@@ -42,7 +47,10 @@ export interface ComputerKind {
 /** One record for each unit kind, in the order of the unit table. */
 export type ComputerTable = ComputerKind[];
 
-export function decodeComputerTable(file: Uint8Array): ComputerTable {
+/** Which byte of a record's bits comes first: the low one in History Line, the high one in the first Battle Isle. */
+export type FlagOrder = 'low-first' | 'high-first';
+
+export function decodeComputerTable(file: Uint8Array, order: FlagOrder = 'low-first'): ComputerTable {
   const data = unpackIfPacked(file);
   if (data.length === 0 || data.length % RECORD_SIZE !== 0) {
     throw new Error(`computer table length ${data.length} is not a multiple of ${RECORD_SIZE}`);
@@ -51,7 +59,7 @@ export function decodeComputerTable(file: Uint8Array): ComputerTable {
   for (let at = 0; at < data.length; at += RECORD_SIZE) {
     kinds.push({
       worth: (data[at]! << 24) >> 24,
-      flags: data[at + 2]! | (data[at + 3]! << 8),
+      flags: order === 'low-first' ? data[at + 2]! | (data[at + 3]! << 8) : (data[at + 2]! << 8) | data[at + 3]!,
       escorts: data[at + 4]!,
     });
   }

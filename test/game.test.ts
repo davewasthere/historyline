@@ -10,15 +10,14 @@ import { decodeMapRecords } from '../src/formats/mapRecords.ts';
 import { UNIT_TYPE_COUNT } from '../src/formats/shops.ts';
 import {
   canEnter,
-  DEPOT_GROUND,
   entranceTerrain,
   FILLED_GROUND,
   FIRST_TRENCH_GROUND,
-  PREPARED_GROUND,
 } from '../src/formats/terrain.ts';
 import { FLANK_PERCENT, GROUND_BONUS } from '../src/game/combat.ts';
 import { computerPlay } from '../src/game/computer.ts';
 import { fieldTowards, moveRange } from '../src/game/movement.ts';
+import { HISTORYLINE_RULES } from '../src/game/rules.ts';
 import { restoreGame, saveGame, type SavedGame } from '../src/game/save.ts';
 import {
   attackerSide,
@@ -48,6 +47,7 @@ import { diskFiles, gameDir } from '../tools/gameFiles.ts';
 
 const skip = existsSync(gameDir()) ? false : `game not found at ${gameDir()}`;
 const files = diskFiles();
+const { preparedGround: PREPARED_GROUND, depotGround: DEPOT_GROUND } = HISTORYLINE_RULES;
 
 test('the game assets load', { skip }, async () => {
   const assets = await loadAssets(files);

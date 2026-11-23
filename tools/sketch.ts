@@ -5,7 +5,8 @@
 //
 // The picture goes to out/ unless --out is given. With --play, the computer
 // plays both sides for at most that many rounds; --games plays that many
-// battles, which differ in what the factories build.
+// battles, which differ in what the factories build. Sketches are built with
+// History Line's tiles: it is the game whose tiles they were worked out for.
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
@@ -57,7 +58,7 @@ if (values.play) {
   for (let game = 0; game < Number(values.games); game++) {
     let seed = 12345 + game * 7919;
     const random = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x80000000);
-    const state = createGame(map, assets.unitTypes, terrainTypes, built.shops);
+    const state = createGame(map, assets.unitTypes, terrainTypes, built.shops, assets.rules);
     const start = [0, 1].map((side) => state.units.filter((unit) => unit.side === side).length);
     const tally = { attacks: 0, hits: 0, built: [0, 0], taken: [0, 0] };
     while (state.round <= rounds && state.winner === null) {

@@ -98,16 +98,17 @@
 //     each of them that is open ground or trench becomes trench. If the field
 //     aimed at is a trench already, the three become open ground instead.
 //     Units standing there stay where they are.
+//
+// All of this is History Line's. Battle Isle's battles are played by the same
+// rules with the numbers in rules.ts; it has no sappers and no trenches.
 
 import { NO_UNIT, splitUnitCode, type GameMap, type Side } from '../formats/map.ts';
 import type { MapShops } from '../formats/shops.ts';
 import {
-  DEPOT_GROUND,
   entranceOwner,
   entranceTerrain,
   FILLED_GROUND,
   FIRST_TRENCH_GROUND,
-  PREPARED_GROUND,
   type Site,
   type TerrainType,
 } from '../formats/terrain.ts';
@@ -123,8 +124,6 @@ import {
 import {
   directionTo,
   fieldTowards,
-  LEAVING_BUDGET,
-  LEAVING_BUDGET_FLAT,
   moveRange,
   neighbours,
   pathTo,
@@ -132,6 +131,7 @@ import {
   type MoveRange,
   type MoverType,
 } from './movement.ts';
+import { HISTORYLINE_RULES, type Rules } from './rules.ts';
 
 /**
  * The way each side's units face when a map starts: German units down the
@@ -202,9 +202,6 @@ const HEADQUARTERS_RESOURCES = 50;
  */
 export const BUILDING_WORTH: Record<Site, number> = { headquarters: 20, factory: 15, depot: 10 };
 export const TAKEN_BUILDING_WORTH = 5;
-/** The unit kinds only one army can build: below the first for the German side, above the second for the French. */
-const FIRST_SHARED_KIND = 10;
-const LAST_SHARED_KIND = 35;
 
 /** The parts of a unit type the rules depend on. */
 export type RuleType = MoverType &
@@ -324,6 +321,8 @@ export interface GameState {
   unitTypes: readonly RuleType[];
   /** The terrain table of the season the map is played in. */
   terrainTypes: readonly TerrainType[];
+  /** The numbers that differ between the games; see rules.ts. */
+  rules: Rules;
 }
 
 export function isBuilding(holder: Holder): holder is Building {
@@ -368,13 +367,14 @@ function buildingFields(map: GameMap, terrainTypes: readonly TerrainType[], kind
  * Starts a game on a copy of `map`; the map passed in is left untouched.
  * `records` is the map's .SHP file: what its buildings and transports hold
  * and which unit kinds can be built. Without it nothing is inside anything
- * and every kind can be built.
+ * and every kind can be built. `rules` are History Line's unless given.
  */
 export function createGame(
   map: GameMap,
   unitTypes: readonly RuleType[],
   terrainTypes: readonly TerrainType[],
   records: Partial<MapShops> = {},
+  rules: Rules = HISTORYLINE_RULES,
 ): GameState {
   const shops = records.shops ?? [];
   const game: GameMap = { ...map, terrain: map.terrain.slice(), units: map.units.slice() };
@@ -464,7 +464,7 @@ export function createGame(
     if (!holder) continue;
     if (isBuilding(holder)) {
       holder.resources = shop.resources;
-      holder.worth = shop.worth;
+      holder.worth = shop.worth ?? holder.worth;
     }
     const side = shop.owner === 0 || shop.owner === 1 ? shop.owner : null;
     for (const type of shop.contents) {
@@ -492,6 +492,7 @@ export function createGame(
     buildable: records.buildable ?? unitTypes.map((_, type) => type),
     unitTypes,
     terrainTypes,
+    rules,
   };
 }
 
@@ -612,7 +613,7 @@ export function rangeOf(state: GameState, unit: Unit): MoveRange | null {
   if (!type || unit.side === null) return null;
   return moveRange(state.map, fieldOf(unit.inside), state.unitTypes, state.terrainTypes, {
     mover: { type: unit.type, side: unit.side },
-    budget: type.flatMoveCost ? LEAVING_BUDGET_FLAT : LEAVING_BUDGET,
+    budget: type.flatMoveCost ? state.rules.leavingBudgetFlat : state.rules.leavingBudget,
     ownEntrancesOnly: true,
   });
 }
@@ -952,7 +953,9 @@ export function incomeOf(state: GameState, side: Side): number {
 /** Whether a side's factories may build a unit kind on this map at all, whatever it costs. */
 function mayBuild(state: GameState, side: Side, type: number): boolean {
   if (!state.unitTypes[type] || !state.buildable.includes(type)) return false;
-  return side === 0 ? type <= LAST_SHARED_KIND : type >= FIRST_SHARED_KIND;
+  const shared = state.rules.sharedKinds;
+  // Kinds before the shared ones are the first side's only, kinds after them the second's.
+  return !shared || (side === 0 ? type <= shared.last : type >= shared.first);
 }
 
 /** The unit kinds a building's owner could build there on this map, with their prices, cheapest first. */
@@ -1068,7 +1071,7 @@ function canPrepare(state: GameState, entrance: Field): boolean {
 
 /** Whether a field is the entrance field of ground prepared for a depot. */
 function isPrepared(state: GameState, field: Field): boolean {
-  return onMap(state, field) && state.map.terrain[fieldIndex(state, field)] === PREPARED_GROUND[0];
+  return onMap(state, field) && state.map.terrain[fieldIndex(state, field)] === state.rules.preparedGround[0];
 }
 
 function depotCount(state: GameState): number {
@@ -1175,14 +1178,14 @@ function carryOutWork(state: GameState, order: WorkOrder): WorkReport {
   if (work === 'prepare') {
     if (!canPrepare(state, target)) return failed;
     fields.forEach((field, part) => {
-      state.map.terrain[fieldIndex(state, field)] = PREPARED_GROUND[part]!;
+      state.map.terrain[fieldIndex(state, field)] = state.rules.preparedGround[part]!;
     });
   } else {
     const entrance = entranceTerrain(state.terrainTypes, 'depot', unit.side);
     if (!isPrepared(state, target) || depotCount(state) >= MAX_DEPOTS || entrance < 0) return failed;
     fields.forEach((field, part) => {
       if (!onMap(state, field)) return;
-      state.map.terrain[fieldIndex(state, field)] = part === 0 ? entrance : DEPOT_GROUND[part - 1]!;
+      state.map.terrain[fieldIndex(state, field)] = part === 0 ? entrance : state.rules.depotGround[part - 1]!;
       state.buildingIndex[fieldIndex(state, field)] = state.buildings.length;
     });
     state.buildings.push({

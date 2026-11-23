@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { DEPOT_GROUND, PREPARED_GROUND } from '../src/formats/terrain.ts';
+import { HISTORYLINE_RULES } from '../src/game/rules.ts';
 import {
   buildingAt,
   BUILDER_SUPPLIES,
@@ -21,6 +21,8 @@ import {
   type Unit,
 } from '../src/game/state.ts';
 import { BUNKER, INFANTRY, makeMap, TANK, terrainOf, terrainTypes, unitTypes, type Placement } from './helpers.ts';
+
+const { preparedGround: PREPARED_GROUND, depotGround: DEPOT_GROUND } = HISTORYLINE_RULES;
 
 /** In these tests a tank is the construction unit. */
 const BUILDER = TANK;

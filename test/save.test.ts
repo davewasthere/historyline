@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { Shop } from '../src/formats/shops.ts';
-import { PREPARED_GROUND } from '../src/formats/terrain.ts';
+import { HISTORYLINE_RULES } from '../src/game/rules.ts';
 import { restoreGame, SAVE_VERSION, saveGame, type SavedGame } from '../src/game/save.ts';
 import {
   buildingAt,
@@ -30,6 +30,7 @@ import {
   type Placement,
 } from './helpers.ts';
 
+const PREPARED_GROUND = HISTORYLINE_RULES.preparedGround;
 const DEPOT = 2;
 
 function on(state: GameState, column: number, row: number): Unit {

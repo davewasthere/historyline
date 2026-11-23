@@ -6,13 +6,14 @@
 // every building, the round and whose half it is, the orders given in this
 // half, and both sides' points.
 //
-// It does not hold the unit and terrain tables. Those come from the game's
-// files again when the battle is taken up, so a saved battle is only good
-// with the game it was played on. Destroyed units are left out.
+// It does not hold the unit and terrain tables, nor the numbers that differ
+// between the games. Those come from the game's files again when the battle
+// is taken up, so a saved battle is only good with the game it was played on. Destroyed units are left out.
 
 import { NO_UNIT, type GameMap, type Side } from '../formats/map.ts';
 import type { Site, TerrainType } from '../formats/terrain.ts';
 import type { Field } from './movement.ts';
+import { HISTORYLINE_RULES, type Rules } from './rules.ts';
 import {
   BUILDING_WORTH,
   fieldsOf,
@@ -133,6 +134,7 @@ export function restoreGame(
   saved: SavedGame,
   unitTypes: readonly RuleType[],
   terrainTypes: readonly TerrainType[],
+  rules: Rules = HISTORYLINE_RULES,
 ): GameState {
   if (saved.version !== SAVE_VERSION) {
     throw new Error(`it is of version ${saved.version}, and this program reads version ${SAVE_VERSION}`);
@@ -245,5 +247,6 @@ export function restoreGame(
     buildable: [...saved.buildable],
     unitTypes,
     terrainTypes,
+    rules,
   };
 }

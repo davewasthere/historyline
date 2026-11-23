@@ -20,7 +20,8 @@
 //   - A unit leaving a transport or a building starts from that field with a
 //     budget of 8 (4 for a unit that pays 2 for every field), and the
 //     entrances of buildings that are not its side's are closed to it
-//     whatever it is.
+//     whatever it is. The two budgets are History Line's; see rules.ts for
+//     Battle Isle's.
 //
 // Whether a move may end on a field is another matter: see cannotStopReason
 // in state.ts.
@@ -48,10 +49,6 @@ export type MoverType = Pick<
 
 const FLAT_COST = 2;
 const TRANSPORT_FIELD_COST = 2;
-
-/** The budget of a unit that leaves a transport or building, and of one that pays the flat cost. */
-export const LEAVING_BUDGET = 8;
-export const LEAVING_BUDGET_FLAT = 4;
 
 export interface MoveOptions {
   /**

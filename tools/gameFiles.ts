@@ -1,18 +1,42 @@
-// Reads the original game's files from disk, for the command-line tools and
+// Reads the original games' files from disk, for the command-line tools and
 // the development server.
 
+import { existsSync } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
 import { resolve, sep } from 'node:path';
+import { GAME_IDS, GAMES, isGameId, type GameProfile, type InstallId } from '../src/games.ts';
 import type { FileSource } from '../src/viewer/assets.ts';
 
-const DEFAULT_GAME_DIR = 'C:\\GOG Games\\Battle Isle Historyline 1914-1918';
+/**
+ * Where each install is looked for: the environment variable that names its
+ * folder, and the GOG install path used without it. Battle Isle's folder is
+ * the one that holds ISLE, DESERT and MOON.
+ */
+const INSTALLS: Record<InstallId, { variable: string; folder: string }> = {
+  historyline: { variable: 'HL_GAME_DIR', folder: 'C:\\GOG Games\\Battle Isle Historyline 1914-1918' },
+  battleisle: { variable: 'BI_GAME_DIR', folder: 'C:\\GOG Games\\Battle Isle' },
+};
 
-/** The folder of the installed game: $HL_GAME_DIR, or the GOG default. */
-export function gameDir(): string {
-  return resolve(process.env.HL_GAME_DIR ?? DEFAULT_GAME_DIR);
+/** The folder of a game's files: History Line's unless another game is named. */
+export function gameDir(profile: GameProfile = GAMES.historyline): string {
+  const install = INSTALLS[profile.install];
+  return resolve(process.env[install.variable] ?? install.folder, profile.folder);
 }
 
-/** Resolves a path inside the game folder, refusing anything that leaves it. */
+/** The games whose folders are there. */
+export function installedGames(): GameProfile[] {
+  return GAME_IDS.map((id) => GAMES[id]).filter((profile) => existsSync(gameDir(profile)));
+}
+
+/** The game a tool's --game option names; History Line without one. */
+export function gameNamed(name: string | undefined): GameProfile {
+  if (name === undefined) return GAMES.historyline;
+  const id = name.toLowerCase();
+  if (!isGameId(id)) throw new Error(`--game must be one of ${GAME_IDS.join(', ')}`);
+  return GAMES[id];
+}
+
+/** Resolves a path inside a game's folder, refusing anything that leaves it. */
 export function resolveInGame(root: string, path: string): string {
   const full = resolve(root, path);
   if (full !== root && !full.startsWith(root + sep)) {
@@ -21,7 +45,9 @@ export function resolveInGame(root: string, path: string): string {
   return full;
 }
 
-export function diskFiles(root = gameDir()): FileSource {
+/** Reads a game's files from its folder: History Line's unless another game, or a folder, is given. */
+export function diskFiles(game: GameProfile | string = GAMES.historyline): FileSource {
+  const root = typeof game === 'string' ? game : gameDir(game);
   return {
     read: async (path) => new Uint8Array(await readFile(resolveInGame(root, path))),
     list: async (directory) => {

@@ -1,5 +1,6 @@
 // WW1GNDS.DAT (summer) and WW1GNDW.DAT (winter): six bytes of properties for
-// each of the 175 terrain numbers.
+// each of the 175 terrain numbers. Battle Isle's GROUND.DAT is the same table
+// for its one set of tiles.
 //
 //   offset  field
 //    0      bits 0-2: a building entrance, and whose (see ENTRANCE_*);
@@ -14,7 +15,10 @@
 //    3      cost for ground units and ships to enter the field
 //    4      cost for aircraft to fly onto it
 //    5      which entry of the ground bonus table applies in a fight here
-//           (see src/game/combat.ts)
+//           (see src/game/combat.ts). Battle Isle numbers its kinds of
+//           ground differently and its table has not been found: its numbers
+//           are turned into History Line's for the same kind of ground (see
+//           src/games.ts)
 //
 // The other bits of bytes 0 and 1 are unknown.
 //
@@ -28,7 +32,16 @@ import { unpackIfPacked } from './tpwm.ts';
 
 const RECORD_SIZE = 6;
 
-/** The terrain classes, in the order the manual lists them. */
+/** A terrain class: the bit a unit's terrain mask is tested against, and what ground has it. */
+export interface TerrainClass {
+  bit: number;
+  name: string;
+}
+
+/**
+ * History Line's terrain classes, in the order the manual lists them. The
+ * Battle Isle games use the same bits for other ground; see src/games.ts.
+ */
 export const TERRAIN_CLASSES = [
   { bit: 1, name: 'deep water' },
   { bit: 4, name: 'shallow water' },
@@ -84,7 +97,12 @@ const SITE_PART_BITS: [number, Site][] = [
   [0x0080, 'depot'],
 ];
 
-export function decodeTerrainTypes(file: Uint8Array): TerrainType[] {
+/**
+ * Reads a terrain table. `combatGrounds`, for a game that numbers its kinds
+ * of ground differently from History Line, gives History Line's number for
+ * each of the game's own.
+ */
+export function decodeTerrainTypes(file: Uint8Array, combatGrounds?: readonly number[]): TerrainType[] {
   const data = unpackIfPacked(file);
   if (data.length % RECORD_SIZE !== 0) {
     throw new Error(`terrain table length ${data.length} is not a multiple of ${RECORD_SIZE}`);
@@ -102,20 +120,23 @@ export function decodeTerrainTypes(file: Uint8Array): TerrainType[] {
       sitePart: SITE_PART_BITS.find(([bit]) => word & bit)?.[1] ?? null,
       buildable: (word & 0x8000) !== 0,
       noLanding: (word & 0x4000) !== 0,
-      combatGround: raw[5]!,
+      combatGround: combatGrounds ? (combatGrounds[raw[5]!] ?? OPEN_COMBAT_GROUND) : raw[5]!,
       raw,
     });
   }
   return types;
 }
 
-export function terrainClassName(terrainClass: number): string {
-  return TERRAIN_CLASSES.find((entry) => entry.bit === terrainClass)?.name ?? 'closed';
+/** The entry of the ground bonus table for open ground, which adds nothing. */
+export const OPEN_COMBAT_GROUND = 8;
+
+export function terrainClassName(terrainClass: number, classes: readonly TerrainClass[] = TERRAIN_CLASSES): string {
+  return classes.find((entry) => entry.bit === terrainClass)?.name ?? 'closed';
 }
 
 /** The names of the terrain classes a terrain mask allows. */
-export function terrainMaskNames(mask: number): string[] {
-  return TERRAIN_CLASSES.filter((entry) => mask & entry.bit).map((entry) => entry.name);
+export function terrainMaskNames(mask: number, classes: readonly TerrainClass[] = TERRAIN_CLASSES): string[] {
+  return classes.filter((entry) => mask & entry.bit).map((entry) => entry.name);
 }
 
 /**
@@ -126,24 +147,10 @@ export function canEnter(terrainMask: number, terrain: TerrainType): boolean {
   return (terrainMask & terrain.terrainClass) !== 0;
 }
 
-/**
- * The terrain numbers of ground prepared for a depot: the field its entrance
- * will be on, then the fields to its lower right, below it and to its lower
- * left. From AMOK.DAT, bytes 24 to 27.
- */
-export const PREPARED_GROUND: readonly number[] = [0x15, 0x18, 0x16, 0x17];
-
-/**
- * The terrain numbers of a depot's fields other than its entrance: to the
- * entrance's lower right, below it and to its lower left. From AMOK.DAT,
- * bytes 29 to 31.
- */
-export const DEPOT_GROUND: readonly number[] = [0x14, 0x12, 0x13];
-
-/** Terrain numbers from this one on are trenches. */
+/** History Line's terrain numbers from this one on are trenches. */
 export const FIRST_TRENCH_GROUND = 0xa5;
 
-/** The terrain number of the open ground a filled-in trench becomes. */
+/** History Line's terrain number of the open ground a filled-in trench becomes. */
 export const FILLED_GROUND = 0x51;
 
 /** Whose building an entrance belongs to: a side, or null for nobody's. */

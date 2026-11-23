@@ -4,8 +4,10 @@
 //   node tools/render.ts tiles [--winter] [options]
 //   node tools/render.ts units [options]
 //
-// Options: --palette N (0-2, default 0), --scale N (default 2), --out file.
-// A map is drawn in its own season unless --summer or --winter is given.
+// Options: --game G (historyline, isle, desert or moon; default historyline),
+// --palette N (0-2, default 0), --scale N (default 2), --out file.
+// A map is drawn in its own season unless --summer or --winter is given; the
+// Battle Isle games have one set of tiles and no seasons.
 // Output goes to out/ unless --out is given.
 
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -14,14 +16,16 @@ import { parseArgs } from 'node:util';
 import type { Bitmap } from '../src/formats/bitmap.ts';
 import { rgba, type Palette } from '../src/formats/palette.ts';
 import { blit, createSurface, type Surface } from '../src/gfx/surface.ts';
+import { seasonsOf } from '../src/games.ts';
 import { FACINGS, listMaps, loadAssets, loadMap, type Season } from '../src/viewer/assets.ts';
 import { renderMap } from '../src/viewer/render.ts';
-import { diskFiles } from './gameFiles.ts';
+import { diskFiles, gameNamed } from './gameFiles.ts';
 import { encodePng } from './png.ts';
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,
   options: {
+    game: { type: 'string' },
     summer: { type: 'boolean', default: false },
     winter: { type: 'boolean', default: false },
     palette: { type: 'string', default: '0' },
@@ -36,8 +40,15 @@ const forcedSeason: Season | null = values.winter ? 'winter' : values.summer ? '
 const scale = Number(values.scale);
 if (!Number.isInteger(scale) || scale < 1) throw new Error('--scale must be a positive whole number');
 
-const source = diskFiles();
-const assets = await loadAssets(source);
+const profile = gameNamed(values.game);
+if (forcedSeason && !seasonsOf(profile).includes(forcedSeason)) {
+  throw new Error(`${profile.title} has no ${forcedSeason} tiles`);
+}
+const source = diskFiles(profile);
+const assets = await loadAssets(source, profile);
+// History Line's pictures keep their names; another game's start with the game's.
+const prefix = profile.id === 'historyline' ? '' : `${profile.id}-`;
+const hasSeasons = seasonsOf(profile).length > 1;
 const paletteIndex = Number(values.palette);
 const palette = assets.palettes[paletteIndex];
 if (!palette) throw new Error(`--palette must be 0 to ${assets.palettes.length - 1}`);
@@ -70,23 +81,26 @@ switch (command) {
     const info = (await listMaps(source)).find((entry) => entry.id === id);
     if (!info) throw new Error(`there is no map ${id}`);
     const season = forcedSeason ?? info.season;
-    const { map } = await loadMap(source, id);
+    const { map } = await loadMap(source, id, profile);
     surface = renderMap(map, assets, { season, palette: paletteIndex, showUnits: !values['no-units'] });
-    name = `map-${id}-${season}.png`;
-    console.log(`map ${id}: ${map.columns} x ${map.rows} fields, a ${info.season} map drawn in ${season}`);
+    name = hasSeasons ? `${prefix}map-${id}-${season}.png` : `${prefix}map-${id}.png`;
+    console.log(
+      `map ${id}: ${map.columns} x ${map.rows} fields` +
+        (hasSeasons ? `, a ${info.season} map drawn in ${season}` : `, ${profile.title}`),
+    );
     break;
   }
   case 'tiles': {
     const season = forcedSeason ?? 'summer';
     const tileset = assets.tilesets[season];
     surface = bitmapSheet(tileset.tiles, 16, palette);
-    name = `tiles-${season}.png`;
+    name = hasSeasons ? `${prefix}tiles-${season}.png` : `${prefix}tiles.png`;
     console.log(`${tileset.tiles.length} terrain tiles, 16 per row, in terrain-number order`);
     break;
   }
   case 'units': {
-    // Two unit types per row; each shows its six facings in German colours,
-    // then in French.
+    // Two unit types per row; each shows its six facings in the first side's
+    // colours, then in the second's.
     const sprites = assets.unitSprites;
     const types = sprites.length / FACINGS;
     surface = sheet(types * FACINGS * 2, FACINGS * 4, 24, (i, x, y, into) => {
@@ -95,8 +109,9 @@ switch (command) {
       const sprite = sprites[type * FACINGS + (slot % FACINGS)]!;
       blit(into, sprite, x, y, palette, slot < FACINGS ? 32 : 48);
     });
-    name = 'units.png';
-    console.log(`${types} unit types, two per row: facings 0-5 German, then 0-5 French`);
+    name = `${prefix}units.png`;
+    const [first, second] = profile.sides;
+    console.log(`${types} unit types, two per row: facings 0-5 ${first}, then 0-5 ${second}`);
     break;
   }
   default:

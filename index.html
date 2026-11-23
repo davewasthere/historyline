@@ -9,7 +9,10 @@
   <body>
     <header class="toolbar">
       <h1>Map viewer</h1>
-      <fieldset class="segmented" aria-label="Season">
+      <label class="select">Game
+        <select id="game"></select>
+      </label>
+      <fieldset class="segmented" id="season" aria-label="Season">
         <label><input type="radio" name="season" value="summer" checked /><span>Summer</span></label>
         <label><input type="radio" name="season" value="winter" /><span>Winter</span></label>
       </fieldset>

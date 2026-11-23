@@ -62,6 +62,11 @@ body {
   font-weight: 600;
 }
 
+/* A control the game shown has no use for: the seasons, the list of games. */
+.toolbar [hidden] {
+  display: none;
+}
+
 .segmented {
   display: inline-flex;
   margin: 0;

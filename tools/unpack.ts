@@ -3,8 +3,9 @@
 //
 //   node tools/unpack.ts [gameDir] [outDir]
 //
-// gameDir defaults to $HL_GAME_DIR, then to the GOG install path.
-// outDir defaults to <project>/unpacked.
+// gameDir defaults to $HL_GAME_DIR, then to History Line's GOG install path.
+// For Battle Isle, give its folder (the one that holds ISLE, DESERT and MOON)
+// and another outDir. outDir defaults to <project>/unpacked.
 //
 // TPWM-packed files are unpacked, library archives become a folder with one
 // file per entry, and everything else is copied unchanged. manifest.tsv lists
@@ -21,7 +22,7 @@ const outDir = resolve(process.argv[3] ?? join(import.meta.dirname, '..', 'unpac
 
 // Not game data: the emulator, the GOG installer's files, and the executables.
 const SKIP_DIRS = new Set(['DOSBOX', '__support', 'cloud_saves']);
-const SKIP_FILES = /^(gog.*|goggame-.*|unins\d+\..*|webcache\.zip|EULA\.txt|manual\.pdf|support\.ico|.*\.(lnk|conf|exe))$/i;
+const SKIP_FILES = /^(gog.*|goggame-.*|unins\d+\..*|webcache\.zip|EULA\.txt|support\.ico|.*\.(lnk|conf|exe|ex2|pdf))$/i;
 
 interface Extracted {
   data: Uint8Array;

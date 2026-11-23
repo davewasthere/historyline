@@ -2,7 +2,7 @@
   "name": "historyline-engine",
   "private": true,
   "version": "0.0.1",
-  "description": "Tools and a map viewer for Historyline 1914-1918, reading data from an owned copy of the game.",
+  "description": "Tools and a map viewer for Historyline 1914-1918 and Battle Isle, reading data from an owned copy of the game.",
   "license": "MIT",
   "type": "module",
   "engines": {

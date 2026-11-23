@@ -1,5 +1,7 @@
-// Loads what the map viewer needs from the original game's files.
+// Loads what the map viewer needs from the original game's files: History
+// Line's, or those of one of the Battle Isle games (see src/games.ts).
 
+import { decodeWorkGround } from '../formats/amok.ts';
 import { readArchive, readNameList } from '../formats/archive.ts';
 import { decodeBitmap, type Bitmap } from '../formats/bitmap.ts';
 import { decodeComputerTable, type ComputerTable } from '../formats/computerTable.ts';
@@ -9,16 +11,18 @@ import { decodePalette, type Palette } from '../formats/palette.ts';
 import { decodeShops, type MapShops } from '../formats/shops.ts';
 import { decodeTerrainTypes, type TerrainType } from '../formats/terrain.ts';
 import { decodeUnitTypes, type UnitType } from '../formats/unitTypes.ts';
+import type { Rules } from '../game/rules.ts';
+import { GAMES, type GameProfile, type Season, type TilesetFiles } from '../games.ts';
 
-/** Where the game's files come from: the disk in tools, HTTP in the browser. */
+export type { Season } from '../games.ts';
+
+/** Where a game's files come from: the disk in tools, HTTP in the browser. */
 export interface FileSource {
-  /** Reads a file by its path inside the game folder, with forward slashes. */
+  /** Reads a file by its path inside the game's own folder, with forward slashes. */
   read(path: string): Promise<Uint8Array>;
   /** Lists the file names in a folder of the game. */
   list(directory: string): Promise<string[]>;
 }
-
-export type Season = 'summer' | 'winter';
 
 export interface Tileset {
   /** Terrain tiles, indexed by the terrain number used in map files. */
@@ -40,6 +44,9 @@ export const FACINGS = 6;
 export const PALETTE_FILES = ['00.PAL', '01.PAL', '02.PAL'] as const;
 
 export interface GameAssets {
+  /** The game these are the files of. */
+  profile: GameProfile;
+  /** The tiles of each season. A game with one set of tiles has it under both. */
   tilesets: Record<Season, Tileset>;
   /** One palette per entry of PALETTE_FILES. */
   palettes: Palette[];
@@ -52,66 +59,94 @@ export interface GameAssets {
    * plays that side. Null if the file is not there.
    */
   computerTables: Record<Side, ComputerTable | null>;
+  /** The numbers the rules need that differ between the games. */
+  rules: Rules;
 }
 
-/** The first map on which the original's computer plays the German side; on those before it, it plays the French. */
-export const FIRST_MAP_OF_GERMAN_COMPUTER = 24;
-
-/** The side the original's computer plays on a single-player map. */
-export function computerSideOf(mapId: string): Side {
-  return Number(mapId) < FIRST_MAP_OF_GERMAN_COMPUTER ? 1 : 0;
-}
-
-async function readComputerTable(source: FileSource, mapId: string): Promise<ComputerTable | null> {
+async function readComputerTable(source: FileSource, mapId: string, profile: GameProfile): Promise<ComputerTable | null> {
   try {
-    return decodeComputerTable(await source.read(`MAP/${mapId}.COM`));
+    return decodeComputerTable(await source.read(`MAP/${mapId}.COM`), profile.computerFlags);
   } catch {
     // Two-player maps have no such file.
     return null;
   }
 }
 
-const SEASON_FILES: Record<Season, { library: string; names: string; terrain: string }> = {
-  summer: { library: 'LIB/PARTS.LIB', names: 'LIB/PARTS.DAT', terrain: 'WW1GNDS.DAT' },
-  winter: { library: 'LIB/PARTW.LIB', names: 'LIB/PARTW.DAT', terrain: 'WW1GNDW.DAT' },
-};
+/** The numbers of the maps that have a file with an extension, in order. */
+function mapIdsWith(fileNames: readonly string[], extension: string): string[] {
+  const ending = `.${extension}`;
+  return fileNames
+    .map((name) => name.toUpperCase())
+    .filter((name) => name.endsWith(ending) && /^\d+$/.test(name.slice(0, -ending.length)))
+    .map((name) => name.slice(0, -ending.length))
+    .sort();
+}
 
-export async function loadAssets(source: FileSource): Promise<GameAssets> {
-  const [summer, winter, unitSprites, unitTable, german, french, ...palettes] = await Promise.all([
-    loadTileset(source, 'summer'),
-    loadTileset(source, 'winter'),
-    loadNumberedBitmaps(source, 'LIB/UNIT.LIB', 'LIB/UNIT.DAT'),
+/** Loads a game's files; `source` reads from that game's own folder. */
+export async function loadAssets(source: FileSource, profile: GameProfile = GAMES.historyline): Promise<GameAssets> {
+  const [summer, winter, unitSprites, unitTable, amok, mapFiles, ...palettes] = await Promise.all([
+    loadTileset(source, profile.tilesets.summer, profile),
+    profile.tilesets.winter ? loadTileset(source, profile.tilesets.winter, profile) : null,
+    loadNumberedBitmaps(source, profile.unitSprites.library, profile.unitSprites.names),
     source.read('UNIT.DAT'),
-    readComputerTable(source, String(FIRST_MAP_OF_GERMAN_COMPUTER)),
-    readComputerTable(source, '00'),
+    source.read('AMOK.DAT'),
+    source.list('MAP'),
     ...PALETTE_FILES.map((file) => source.read(file)),
   ]);
+  // The first single-player map on which the original's computer plays each side.
+  const withTable = mapIdsWith(mapFiles, 'COM');
+  const tableFor = (side: Side) => {
+    const mapId = withTable.find((id) => profile.computerSide(id) === side);
+    return mapId === undefined ? null : readComputerTable(source, mapId, profile);
+  };
+  const [first, second] = await Promise.all([tableFor(0), tableFor(1)]);
   return {
-    tilesets: { summer, winter },
+    profile,
+    tilesets: { summer, winter: winter ?? summer },
     palettes: palettes.map(decodePalette),
     unitSprites: unitSprites.bitmaps,
-    unitTypes: decodeUnitTypes(unitTable),
-    computerTables: { 0: german, 1: french },
+    unitTypes: decodeUnitTypes(unitTable, profile.unitLayout),
+    computerTables: { 0: first, 1: second },
+    rules: { ...profile.rules, ...decodeWorkGround(amok) },
   };
 }
 
-async function loadTileset(source: FileSource, season: Season): Promise<Tileset> {
-  const files = SEASON_FILES[season];
+async function loadTileset(source: FileSource, files: TilesetFiles, profile: GameProfile): Promise<Tileset> {
   const [tiles, terrain] = await Promise.all([
     loadNumberedBitmaps(source, files.library, files.names),
     source.read(files.terrain),
   ]);
-  return { tiles: tiles.bitmaps, tileNames: tiles.names, terrainTypes: decodeTerrainTypes(terrain) };
+  // A tile's corners lie outside its field, so its first pixel has the colour
+  // that is not drawn. The tiles' headers say the same, except The Desert's,
+  // which all say 0.
+  for (const tile of tiles.bitmaps) tile.transparent = tile.pixels[0] ?? tile.transparent;
+  return {
+    tiles: tiles.bitmaps,
+    tileNames: tiles.names,
+    terrainTypes: decodeTerrainTypes(terrain, profile.combatGrounds ?? undefined),
+  };
 }
 
-/** Loads a library's bitmaps in the order its companion name list gives them. */
+/**
+ * Loads a library's bitmaps in the order its companion name list gives
+ * them, or, for a library without one, in the order of its entries' names,
+ * which then start with their numbers.
+ */
 async function loadNumberedBitmaps(
   source: FileSource,
   libraryPath: string,
-  namesPath: string,
+  namesPath: string | null,
 ): Promise<{ bitmaps: Bitmap[]; names: string[] }> {
-  const [library, nameList] = await Promise.all([source.read(libraryPath), source.read(namesPath)]);
-  const byName = new Map(readArchive(library).map((entry) => [entry.name, entry.data]));
+  const [library, nameList] = await Promise.all([
+    source.read(libraryPath),
+    namesPath === null ? null : source.read(namesPath),
+  ]);
+  const entries = readArchive(library);
+  if (nameList === null) {
+    const sorted = entries.toSorted((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+    return { bitmaps: sorted.map((entry) => decodeBitmap(entry.data)), names: sorted.map((entry) => entry.name) };
+  }
+  const byName = new Map(entries.map((entry) => [entry.name, entry.data]));
   const names = readNameList(nameList);
   const bitmaps = names.map((name) => {
     const data = byName.get(name);
@@ -141,13 +176,9 @@ export interface MapInfo {
 
 export async function listMaps(source: FileSource): Promise<MapInfo[]> {
   const [fileNames, recordFile] = await Promise.all([source.list('MAP'), source.read('CODES.DAT')]);
-  const names = fileNames.map((name) => name.toUpperCase());
   const records = decodeMapRecords(recordFile);
-  const computerFiles = new Set(names.filter((name) => name.endsWith('.COM')).map((name) => name.slice(0, -4)));
-  return names
-    .filter((name) => /^\d+\.FIN$/.test(name))
-    .map((name) => name.slice(0, -4))
-    .sort()
+  const computerFiles = new Set(mapIdsWith(fileNames, 'COM'));
+  return mapIdsWith(fileNames, 'FIN')
     .map((id) => {
       const record = records[Number(id)];
       return {
@@ -166,13 +197,17 @@ export interface LoadedMap {
   computerTable: ComputerTable | null;
 }
 
-export async function loadMap(source: FileSource, id: string): Promise<LoadedMap> {
+export async function loadMap(
+  source: FileSource,
+  id: string,
+  profile: GameProfile = GAMES.historyline,
+): Promise<LoadedMap> {
   const [fields, shops, computerTable] = await Promise.all([
     source.read(`MAP/${id}.FIN`),
     source.read(`MAP/${id}.SHP`),
-    readComputerTable(source, id),
+    readComputerTable(source, id, profile),
   ]);
-  return { map: decodeMap(fields), shops: decodeShops(shops), computerTable };
+  return { map: decodeMap(fields), shops: decodeShops(shops, profile.unitKinds), computerTable };
 }
 
 /**
@@ -180,5 +215,5 @@ export async function loadMap(source: FileSource, id: string): Promise<LoadedMap
  * original's computer plays that side there, else the one kept for that side.
  */
 export function computerTableFor(assets: GameAssets, loaded: LoadedMap, mapId: string, side: Side): ComputerTable | null {
-  return (computerSideOf(mapId) === side ? loaded.computerTable : null) ?? assets.computerTables[side];
+  return (assets.profile.computerSide(mapId) === side ? loaded.computerTable : null) ?? assets.computerTables[side];
 }
