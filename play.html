@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Battle</title>
+    <link rel="stylesheet" href="/src/web/style.css" />
+  </head>
+  <body class="play">
+    <header class="toolbar">
+      <a id="back" class="back" href="maps.html">‹ Maps</a>
+      <h1 id="battle-title">Battle</h1>
+      <fieldset class="segmented" id="season" aria-label="Season">
+        <label><input type="radio" name="season" value="summer" checked /><span>Summer</span></label>
+        <label><input type="radio" name="season" value="winter" /><span>Winter</span></label>
+      </fieldset>
+      <label class="check"><input type="checkbox" id="show-units" checked /> Units</label>
+      <label class="select">Zoom
+        <select id="zoom">
+          <option value="1">1×</option>
+          <option value="2" selected>2×</option>
+          <option value="3">3×</option>
+          <option value="4">4×</option>
+        </select>
+      </label>
+      <label class="select">Colours
+        <select id="palette">
+          <option value="0" selected>Green and tan</option>
+          <option value="1">Blue and yellow</option>
+          <option value="2">Grey</option>
+        </select>
+      </label>
+      <label class="select">Computer
+        <select id="computer">
+          <option value="nobody" selected>plays nobody</option>
+          <option value="german">plays German</option>
+          <option value="french">plays French</option>
+          <option value="both">plays both</option>
+        </select>
+      </label>
+      <span class="turn">
+        <span id="turn-status" class="turn-status"></span>
+        <button type="button" id="end-turn">End turn</button>
+        <button type="button" id="restart">Restart</button>
+        <button type="button" id="save">Save</button>
+        <button type="button" id="load">Load</button>
+      </span>
+      <output id="field-info" class="field-info">Move over the map to inspect a field; click one to pin it.</output>
+    </header>
+
+    <main class="stage" id="stage">
+      <div class="canvas-wrap" id="canvas-wrap">
+        <canvas id="map"></canvas>
+        <canvas id="overlay"></canvas>
+      </div>
+      <p id="message" class="message" hidden></p>
+    </main>
+
+    <aside class="details" id="details" aria-label="Map details"></aside>
+
+    <dialog id="inside" class="inside" aria-labelledby="inside-title">
+      <div id="inside-body" class="inside-body"></div>
+    </dialog>
+
+    <script type="module" src="/src/web/play.ts"></script>
+  </body>
+</html>

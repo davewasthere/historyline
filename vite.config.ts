@@ -75,6 +75,6 @@ function gameFiles(): Plugin {
 export default defineConfig({
   plugins: [gameFiles()],
   server: { port: 5914, strictPort: true },
-  // The viewer has two pages: the games that are played, and Battle Isle 2's maps.
-  build: { rollupOptions: { input: ['index.html', 'bi2.html'] } },
+  // The viewer's pages: the games, a game's maps, a battle, and Battle Isle 2's missions.
+  build: { rollupOptions: { input: ['index.html', 'maps.html', 'play.html', 'bi2.html'] } },
 });

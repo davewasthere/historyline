@@ -22,7 +22,7 @@ defaults to `C:\GOG Games\Battle Isle`. Battle Isle 2's, the one that holds
 | Command | What it does |
 |---|---|
 | `npm install` | Installs Vite and TypeScript. |
-| `npm run dev` | Starts the map viewer at http://localhost:5914. |
+| `npm run dev` | Starts the viewer at http://localhost:5914. |
 | `npm test` | Runs the tests. The ones that need the game are skipped if it is not installed. |
 | `npm run typecheck` | Type-checks the project. |
 | `npm run render -- map 12` | Draws a map to `out/` as a PNG. Also `tiles` and `units`; add `--summer` or `--winter`, `--palette N`, `--no-units`, `--scale N`, and `--game isle`, `desert` or `moon` for a Battle Isle game. With `--game bi2` it draws a Battle Isle 2 mission (`map 4`), its terrain parts or its unit pictures. |
@@ -61,6 +61,30 @@ The image has been built from these files on no machine yet. What was
 tried is the same layout served by a plain file server: the built pages,
 with `game-data/` under `/game` and a folder answered with its
 `index.json`, which is what `docker/nginx.conf` sets up.
+
+## The viewer
+
+It has three pages, one after the other:
+
+- **The games.** Every game found installed, each with a piece of one of
+  its maps. Picking one goes to its maps.
+- **The maps** of the game picked, in a list, with the one picked drawn
+  beside it and what there is to know of it: its size, what each side has
+  and earns, its buildings. Under that is what a battle on it starts with:
+  which side to play against the computer (or both sides for two players at
+  one screen, or neither, to watch the computer), the season where the game
+  has seasons, and the colours. A map of the game's own starts as the game
+  has it: in its season, and a single-player map as the side the game gives
+  the player. "Start battle" begins; a double click on a map in the list, or
+  Enter, does the same. If a battle is in progress on the map, "Continue the
+  battle" goes on with it and "Start afresh" begins a new one.
+- **The battle**, as described under [Playing](#playing). "‹ Maps" in its
+  toolbar leads back to the list, where the battle left can be continued.
+
+What was chosen is in the page's address, so a battle's address opens that
+battle again, and an address from before there were three pages
+(`/#map=12`) leads to the battle it meant. Battle Isle 2, which is only
+looked at, goes from the first page straight to its missions.
 
 ## Playing
 
@@ -116,8 +140,8 @@ side orders attacks; in the second they swap. The toolbar says which is which.
   has happened in, is not kept, and "Restart" begins a map afresh.
 - "Save" keeps the battle as it stands, orders given in this half included.
   There is one save for each map, and saving again replaces it. "Load" brings
-  the map's saved battle back. Maps with a saved battle have a dot in the map
-  list. This save is apart from the battle in progress and is only changed
+  the map's saved battle back. Maps with a saved battle, or one in progress,
+  have a dot in the map list. This save is apart from the battle in progress and is only changed
   by "Save". Both are kept in the browser they were made in (its local
   storage for this address), not in a file.
 - "Computer" in the toolbar hands a side to the computer: German, French or
@@ -181,9 +205,9 @@ What is and is not in yet:
 Battle Isle (1991) is three games installed side by side, each with its own
 maps, tiles and unit table: Battle Isle itself (`ISLE`), its first data disk
 The Desert (`DESERT`) and its second, The Moon of Chromos (`MOON`). Each has
-34 maps and 27 unit kinds. The viewer's "Game" list has every game it finds
-installed; picking one loads the page for it, and the game is part of the
-address (`#game=isle`). The tools take `--game isle`, `desert` or `moon`.
+34 maps and 27 unit kinds. The viewer's first page has every game it finds
+installed, and the game is part of the addresses of its maps and battles
+(`#game=isle`). The tools take `--game isle`, `desert` or `moon`.
 
 Their files are History Line's with these differences, all found by reading
 the files (`src/games.ts` has the list, the decoders in `src/formats` the
@@ -289,8 +313,8 @@ Battle Isle 2 (1994) and its add-on, the Scenery disk, are a later program
 with files of their own, and its rules have weather, fuel, ammunition, four
 weapons to a unit and up to seven players. None of `src/game` fits it. What
 this project does with it is draw its missions. The two disks are one game
-here: the viewer's "Game" list has Battle Isle 2 once, marked "maps only",
-on a page of its own (`bi2.html`) that lists the missions of both in one
+here: the viewer's first page has Battle Isle 2 once, marked "maps only",
+and it opens a page of its own (`bi2.html`) that lists the missions of both in one
 list by number, with their names, tasks and passwords, shows a map, and says
 what is on a field.
 `npm run render -- --game bi2 map 4` draws one to `out/`. The add-on has the
@@ -453,7 +477,10 @@ would load such a file has not been tried.
 - `src/maps` makes maps from sketches: `pieces.ts` is the table of what
   the tiles show, `sketch.ts` the builder. `maps` holds the sketches.
 - `src/viewer` loads the assets and draws a map.
-- `src/web` is the viewer's page.
+- `src/web` holds the viewer's pages: `home.ts` lists the games, `maps.ts`
+  a game's maps with what a battle starts with, `play.ts` is the battle, and
+  `bi2.ts` shows Battle Isle 2's missions. `library.ts` and `battles.ts`
+  have what they share: a game's maps, and the battles the browser keeps.
 - `tools` holds the command-line tools, and what reads the games from disk
   for them and for the development server.
 

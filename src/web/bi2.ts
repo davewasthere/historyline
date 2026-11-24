@@ -3,16 +3,14 @@
 
 import { loadBi2Game, type Bi2Assets, type Bi2Game, type MissionInfo } from '../bi2/assets.ts';
 import { NOTHING, splitUnit, waysOf, WAYS, WEATHERS, type Mission } from '../bi2/formats.ts';
-import { BI2_DISKS, BI2_GAME_ID, BI2_TITLE } from '../bi2/games.ts';
+import { BI2_DISKS, BI2_TITLE } from '../bi2/games.ts';
 import { renderMission } from '../bi2/render.ts';
 import type { Field } from '../game/movement.ts';
 import { rgbaBytes } from '../gfx/surface.ts';
 import type { FileSource } from '../viewer/assets.ts';
 import { fieldAt, fieldOrigin, hexMask, TILE_SIZE } from '../viewer/render.ts';
-import { installedGameIds, openGame, showGameList } from './gameList.ts';
 
 const params = new URLSearchParams(location.hash.slice(1));
-const gameId = BI2_GAME_ID;
 
 /** The development server hands out the files of each of the game's disks under /game/<the disk's id>. */
 function diskFiles(disk: string): FileSource {
@@ -43,7 +41,6 @@ const mapList = element<HTMLDivElement>('map-list');
 const details = element<HTMLElement>('details');
 const fieldInfo = element<HTMLOutputElement>('field-info');
 const message = element<HTMLParagraphElement>('message');
-const gameSelect = element<HTMLSelectElement>('game');
 const zoomSelect = element<HTMLSelectElement>('zoom');
 const weatherSelect = element<HTMLSelectElement>('weather');
 const unitsCheckbox = element<HTMLInputElement>('show-units');
@@ -297,14 +294,7 @@ for (const control of [unitsCheckbox, zoomSelect, weatherSelect]) {
 }
 
 async function start(): Promise<void> {
-  const games = await installedGameIds(gameId);
-  if (!games.includes(gameId)) {
-    // The game the URL names is not there; one that is takes its place.
-    openGame(games[0]!);
-    return;
-  }
   document.title = `${BI2_TITLE} map viewer`;
-  showGameList(gameSelect, gameId, games);
   unitsCheckbox.checked = state.showUnits;
   zoomSelect.value = String(state.zoom);
   weatherSelect.value = String(state.weather);

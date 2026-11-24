@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Maps</title>
+    <link rel="stylesheet" href="/src/web/style.css" />
+  </head>
+  <body class="choose">
+    <header class="toolbar">
+      <a class="back" href="./">‹ Games</a>
+      <h1 id="game-title">Maps</h1>
+      <label class="check"><input type="checkbox" id="show-units" checked /> Units</label>
+      <output id="field-info" class="field-info">Pick a map to see it; start a battle on it from the panel on the right.</output>
+    </header>
+
+    <nav class="maps" aria-label="Maps">
+      <div id="map-list"></div>
+    </nav>
+
+    <main class="stage" id="stage">
+      <div class="canvas-wrap" id="canvas-wrap">
+        <canvas id="map"></canvas>
+      </div>
+      <p id="message" class="message" hidden></p>
+    </main>
+
+    <aside class="details" id="details" aria-label="Map and battle"></aside>
+
+    <script type="module" src="/src/web/maps.ts"></script>
+  </body>
+</html>

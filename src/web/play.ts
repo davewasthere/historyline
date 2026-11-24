@@ -1,5 +1,7 @@
-// The viewer's page: pick a map, see it drawn, inspect fields, units and
-// buildings, and play it turn by turn: move units, load and unload them, take
+// The page a battle is played on. The map and who plays it come with the
+// address, from the page on which maps are picked (maps.ts). It shows the
+// map, lets fields, units and buildings be inspected, and the battle be
+// played turn by turn: move units, load and unload them, take
 // buildings, order attacks, build and repair units, and have construction
 // units build depots. A click on a building or a loaded transport opens a
 // dialog that shows what is inside. A battle can be saved, one for each map,
@@ -17,7 +19,7 @@ import type { UnitType, Weapon } from '../formats/unitTypes.ts';
 import { ATTACKS_INDIRECTLY, ATTACKS_NEVER_BACK } from '../game/combat.ts';
 import { computerPlay, type ComputerTurn } from '../game/computer.ts';
 import type { Field } from '../game/movement.ts';
-import { restoreGame, saveGame, type SavedGame } from '../game/save.ts';
+import { restoreGame, saveGame } from '../game/save.ts';
 import {
   attackerSide,
   attackTargets,
@@ -61,53 +63,36 @@ import {
   type WorkReport,
 } from '../game/state.ts';
 import { rgbaBytes } from '../gfx/surface.ts';
-import { GAMES, isGameId, seasonsOf, type GameId } from '../games.ts';
-import { REBUILT_GAMES, sketchFromBattleIsle, type RebuiltGame } from '../maps/battleIsle.ts';
-import { buildMap, type MapSketch } from '../maps/sketch.ts';
+import { GAMES, seasonsOf } from '../games.ts';
 import {
   computerTableFor,
-  listMaps,
-  loadAssets,
-  loadMap,
   PALETTE_FILES,
-  type FileSource,
   type GameAssets,
   type LoadedMap,
   type MapInfo,
   type Season,
 } from '../viewer/assets.ts';
 import { fieldAt, fieldOrigin, hexMask, renderMap, renderUnit, TILE_SIZE } from '../viewer/render.ts';
-import { installedGameIds, openGame, showGameList } from './gameList.ts';
+import {
+  autosaveKey as autosaveKeyOf,
+  COMPUTER_CHOICES,
+  computerPlaysSide,
+  describeSave as describeSaveOf,
+  forgetBattle,
+  readBattle,
+  saveKey as saveKeyOf,
+  type ComputerChoice,
+  type SavedBattle,
+} from './battles.ts';
+import { gameInAddress, mapName, mapsPage, openLibrary, type Library } from './library.ts';
 
-/**
- * The game whose maps are shown: the one the URL names, else History Line.
- * Picking another one loads the page again for it.
- */
-const gameId: GameId = (() => {
-  const named = new URLSearchParams(location.hash.slice(1)).get('game');
-  return isGameId(named) ? named : 'historyline';
-})();
+/** The game the battle is of: the one the address names, else History Line. */
+const gameId = gameInAddress();
 const profile = GAMES[gameId];
 /** What the two sides are called in this game, and what belongs to neither. */
 const OWNERS = [...profile.sides, 'neutral'] as const;
 const hasSeasons = seasonsOf(profile).length > 1;
 
-/** The development server hands out each installed game's files under /game/<its id>. */
-function filesOf(game: GameId): FileSource {
-  return {
-    async read(path) {
-      const response = await fetch(`/game/${game}/${path}`);
-      if (!response.ok) throw new Error(`could not read ${path} (HTTP ${response.status})`);
-      return new Uint8Array(await response.arrayBuffer());
-    },
-    async list(directory) {
-      const response = await fetch(`/game/${game}/${directory}/`);
-      if (!response.ok) throw new Error(`could not list ${directory} (HTTP ${response.status})`);
-      return (await response.json()) as string[];
-    },
-  };
-}
-const gameFiles = filesOf(gameId);
 
 function element<T extends HTMLElement>(id: string): T {
   const found = document.getElementById(id);
@@ -118,11 +103,11 @@ function element<T extends HTMLElement>(id: string): T {
 const mapCanvas = element<HTMLCanvasElement>('map');
 const overlayCanvas = element<HTMLCanvasElement>('overlay');
 const canvasWrap = element<HTMLDivElement>('canvas-wrap');
-const mapList = element<HTMLDivElement>('map-list');
+const backLink = element<HTMLAnchorElement>('back');
+const battleTitle = element<HTMLHeadingElement>('battle-title');
 const details = element<HTMLElement>('details');
 const fieldInfo = element<HTMLOutputElement>('field-info');
 const message = element<HTMLParagraphElement>('message');
-const gameSelect = element<HTMLSelectElement>('game');
 const zoomSelect = element<HTMLSelectElement>('zoom');
 const paletteSelect = element<HTMLSelectElement>('palette');
 const computerSelect = element<HTMLSelectElement>('computer');
@@ -139,10 +124,6 @@ const seasonControl = element<HTMLFieldSetElement>('season');
 
 const FIELD_INFO_IDLE = fieldInfo.textContent;
 
-/** Which side or sides the computer plays: the first is named 'german' and the second 'french' in every game. */
-type ComputerChoice = 'nobody' | 'german' | 'french' | 'both';
-const COMPUTER_CHOICES: readonly ComputerChoice[] = ['nobody', 'german', 'french', 'both'];
-
 interface ViewState {
   mapId: string;
   computer: ComputerChoice;
@@ -153,51 +134,11 @@ interface ViewState {
   zoom: number;
 }
 
-/**
- * The maps that are not the game's: the sketches in maps/, each known by its
- * file's name. They are made into maps with the game's tiles when opened.
- */
-const sketches = new Map<string, MapSketch>(
-  // They are put together from History Line's tiles, so only that game has them.
-  !profile.sketches
-    ? []
-    : Object.entries(import.meta.glob<MapSketch>('../../maps/*.json', { eager: true, import: 'default' })).map(
-        ([file, sketch]) => [file.slice(file.lastIndexOf('/') + 1, -'.json'.length), sketch],
-      ),
-);
-
-/** What is wrong with the sketch of the map last opened, in words; empty for a sound one and for the game's maps. */
+/** What could not be done in making the map last opened, in words; empty for a sound one and for the game's own maps. */
 let sketchProblems: string[] = [];
 
-/** The tiles and tables of the Battle Isle games whose maps were rebuilt, each loaded when first needed. */
-const rebuiltAssets = new Map<RebuiltGame, Promise<GameAssets>>();
-
-/** A Battle Isle map as a sketch for a History Line map. */
-async function sketchOfRebuilt(game: RebuiltGame, mapId: string, code: string): Promise<MapSketch> {
-  const source = filesOf(game);
-  let loading = rebuiltAssets.get(game);
-  if (!loading) rebuiltAssets.set(game, (loading = loadAssets(source, GAMES[game])));
-  const [theirs, their] = await Promise.all([loading, loadMap(source, mapId, GAMES[game])]);
-  return sketchFromBattleIsle({
-    game,
-    title: `${GAMES[game].title} ${mapId}`,
-    about: `Map ${mapId} (${code}) of ${GAMES[game].title}, rebuilt with History Line's tiles and units.`,
-    map: their.map,
-    shops: their.shops,
-    terrainTypes: theirs.tilesets.summer.terrainTypes,
-    tileNames: theirs.tilesets.summer.tileNames,
-    isTransport: theirs.unitTypes.map((type) => type.isTransport),
-  });
-}
-
-/** A sketch as a map. */
-function mapFromSketch(sketch: MapSketch): LoadedMap {
-  const terrainTypes = assets.tilesets[sketch.season ?? 'summer'].terrainTypes;
-  const built = buildMap(sketch, { unitTypes: assets.unitTypes, terrainTypes });
-  sketchProblems = built.problems;
-  return { map: built.map, shops: built.shops, computerTable: null };
-}
-
+/** The game's maps, and its tiles and tables. */
+let library: Library;
 let assets: GameAssets;
 let maps: MapInfo[] = [];
 /** The map as it is in the game's files. */
@@ -286,6 +227,8 @@ function writeStateToUrl(): void {
   if (!state.showUnits) params.set('units', '0');
   if (state.computer !== 'nobody') params.set('computer', state.computer);
   history.replaceState(null, '', `#${params}`);
+  // The way back to the list of maps leads to this one.
+  backLink.href = mapsPage(gameId, state.mapId);
 }
 
 function showMessage(text: string | null): void {
@@ -475,8 +418,7 @@ function startGame(): void {
 // --- the computer's player ---------------------------------------------------
 
 function computerPlays(side: Side | null): boolean {
-  if (side === null) return false;
-  return state.computer === 'both' || state.computer === (side === 0 ? 'german' : 'french');
+  return side !== null && computerPlaysSide(state.computer, side);
 }
 
 /** Whether a side's orders are drawn: the computer's are kept from the player it plays against. */
@@ -512,39 +454,9 @@ function describeComputerTurn(turn: ComputerTurn): string {
 
 // --- saved battles -----------------------------------------------------------
 
-/**
- * A battle as the browser keeps it. Each map has two places: one for the
- * battle saved with the Save button, and one for the battle in progress,
- * which is kept up to date without being asked.
- */
-interface SavedBattle {
-  mapId: string;
-  /** Which sides the computer played, and the halves it had played them in; missing in older saves. */
-  computer?: ComputerChoice;
-  played?: [string | null, string | null];
-  /** The season it was being played in. */
-  season: Season;
-  /** When it was saved, as an ISO date. */
-  savedAt: string;
-  game: SavedGame;
-}
-
-// History Line's battles are kept under the names they always had; another game's have the game in theirs.
-const storagePrefix = gameId === 'historyline' ? 'historyline' : `historyline.${gameId}`;
-const saveKey = (mapId: string) => `${storagePrefix}.save.${mapId}`;
-const autosaveKey = (mapId: string) => `${storagePrefix}.auto.${mapId}`;
-
-/** The battle kept under a name for a map, if there is one that can be read. */
-function readBattle(key: string, mapId: string): SavedBattle | null {
-  try {
-    const text = localStorage.getItem(key);
-    const battle = text ? (JSON.parse(text) as SavedBattle) : null;
-    return battle && battle.mapId === mapId && battle.game ? battle : null;
-  } catch {
-    // No storage, or something else's data under the name.
-    return null;
-  }
-}
+// How battles are kept is in battles.ts; these are this game's names for them.
+const saveKey = (mapId: string) => saveKeyOf(gameId, mapId);
+const autosaveKey = (mapId: string) => autosaveKeyOf(gameId, mapId);
 
 /** The battle saved for a map with the Save button. */
 function savedBattle(mapId: string): SavedBattle | null {
@@ -606,11 +518,7 @@ function takeUp(battle: SavedBattle): string | null {
 }
 
 function describeSave(battle: SavedBattle): string {
-  const { round, mover, winner } = battle.game;
-  const when = new Date(battle.savedAt).toLocaleString();
-  return winner !== null
-    ? `saved ${when}, won by the ${OWNERS[winner]} side in round ${round}`
-    : `saved ${when} in round ${round}, ${OWNERS[mover]} side moving`;
+  return describeSaveOf(battle, OWNERS);
 }
 
 function saveBattle(): void {
@@ -621,7 +529,6 @@ function saveBattle(): void {
   } catch (error) {
     notice = `The battle could not be saved: ${(error as Error).message}`;
   }
-  renderMapList();
   refresh();
 }
 
@@ -938,57 +845,6 @@ function itemList(items: [title: string, sub: string][]): HTMLUListElement {
     ul.append(li);
   }
   return ul;
-}
-
-function renderMapList(): void {
-  mapList.replaceChildren();
-  // History Line's single-player maps come as two sets of the same
-  // battlefields with different starting positions: in the first the
-  // original's computer plays the French side, in the second the German.
-  const own = maps.filter((map) => !map.from);
-  const single = own.filter((map) => map.singlePlayer);
-  const groups: [string, MapInfo[]][] = [
-    [`Single-player, as ${OWNERS[0]}`, single.filter((map) => profile.computerSide(map.id) === 1)],
-    [`Single-player, as ${OWNERS[1]}`, single.filter((map) => profile.computerSide(map.id) === 0)],
-    ['Two-player', own.filter((map) => !map.singlePlayer && !map.title)],
-    ['New maps', own.filter((map) => map.title)],
-    // Another game's maps, rebuilt as this game's.
-    ...REBUILT_GAMES.map((from): [string, MapInfo[]] => [
-      `From ${GAMES[from].title}`,
-      maps.filter((map) => map.from?.game === from),
-    ]),
-  ];
-  for (const [title, members] of groups) {
-    if (members.length === 0) continue;
-    const grid = document.createElement('div');
-    // The game's maps go by their numbers; the new ones by their names, which need a line each.
-    grid.className = members[0]!.title ? 'map-grid named' : 'map-grid';
-    for (const map of members) {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.textContent = map.from?.mapId ?? map.title ?? map.id;
-      const battle = savedBattle(map.id);
-      const season = hasSeasons ? map.season : null;
-      button.title =
-        (map.from
-          ? `${GAMES[map.from.game].title}, map ${map.from.mapId} (${map.code}), rebuilt as a History Line map`
-          : map.title
-            ? `${map.about ?? map.title}${season ? ` (${season})` : ''}`
-            : `Map ${map.id}${season ? `, ${season}` : ''}`) +
-        (battle ? `; a battle is ${describeSave(battle)}` : '');
-      if (map.season === 'winter') button.classList.add('winter');
-      if (battle) button.classList.add('saved');
-      if (map.id === state.mapId) button.setAttribute('aria-current', 'true');
-      button.addEventListener('click', () => {
-        // A map picked from the list is shown in the season the game plays it in.
-        state.season = map.season;
-        syncControls();
-        void selectMap(map.id);
-      });
-      grid.append(button);
-    }
-    mapList.append(heading(title), grid);
-  }
 }
 
 function describeWeapon(weapon: Weapon | null): string {
@@ -1527,20 +1383,16 @@ function describeFight(report: FightReport): [string, string] {
 async function selectMap(id: string): Promise<void> {
   state.mapId = id;
   writeStateToUrl();
-  renderMapList();
+  const info = maps.find((map) => map.id === id);
+  battleTitle.textContent = `${profile.title} · ${info ? mapName(info) : `Map ${id}`}`;
+  document.title = `${info ? mapName(info) : `Map ${id}`} · ${profile.title}`;
   try {
-    const from = maps.find((map) => map.id === id)?.from;
-    const code = maps.find((map) => map.id === id)?.code ?? '';
-    const sketch =
-      sketches.get(id) ??
-      (from && REBUILT_GAMES.includes(from.game as RebuiltGame)
-        ? await sketchOfRebuilt(from.game as RebuiltGame, from.mapId, code)
-        : undefined);
     sketchProblems = [];
-    const next = sketch ? mapFromSketch(sketch) : await loadMap(gameFiles, id, profile);
+    const next = await library.load(id);
     // Another map may have been picked while this one was loading.
     if (state.mapId !== id) return;
-    loaded = next;
+    loaded = next.loaded;
+    sketchProblems = next.problems;
   } catch (error) {
     loaded = null;
     game = null;
@@ -1785,9 +1637,10 @@ for (const control of [...seasonInputs, unitsCheckbox, zoomSelect, paletteSelect
 }
 
 /** Fits the page's controls to the game: its name, its sides, its colours, and whether it has seasons. */
-function nameControls(games: readonly string[]): void {
-  document.title = `${profile.title} map viewer`;
-  showGameList(gameSelect, gameId, games);
+function nameControls(): void {
+  document.title = profile.title;
+  battleTitle.textContent = profile.title;
+  backLink.href = mapsPage(gameId, state.mapId || undefined);
   seasonControl.hidden = !hasSeasons;
   [...paletteSelect.options].forEach((option, index) => {
     option.textContent = profile.palettes[index] ?? option.textContent;
@@ -1799,29 +1652,17 @@ function nameControls(games: readonly string[]): void {
 }
 
 async function start(): Promise<void> {
-  const games = await installedGameIds(gameId);
-  if (!games.includes(gameId)) {
-    // The game the URL names is not there; one that is takes its place.
-    openGame(games[0]!);
+  const asked = new URLSearchParams(location.hash.slice(1));
+  // A battle is of a map: without one named, the maps are there to pick from.
+  if (!state.mapId) {
+    location.replace(mapsPage(gameId));
     return;
   }
-  nameControls(games);
+  nameControls();
   syncControls();
   try {
-    [assets, maps] = await Promise.all([loadAssets(gameFiles, profile), listMaps(gameFiles)]);
-    for (const [id, sketch] of sketches) {
-      maps.push({ id, singlePlayer: false, season: sketch.season ?? 'summer', code: '', title: sketch.title, about: sketch.about });
-    }
-    // The maps of the Battle Isle games that are installed, to be rebuilt with this game's tiles when opened.
-    for (const from of profile.sketches ? REBUILT_GAMES.filter((game) => games.includes(game)) : []) {
-      try {
-        for (const theirs of await listMaps(filesOf(from))) {
-          maps.push({ ...theirs, id: `${from}-${theirs.id}`, season: 'summer', from: { game: from, mapId: theirs.id } });
-        }
-      } catch {
-        // That game's maps cannot be listed: this game's are shown without them.
-      }
-    }
+    library = await openLibrary(gameId);
+    ({ assets, maps } = library);
   } catch (error) {
     showMessage(
       `The game's files could not be read (${(error as Error).message}). ` +
@@ -1839,16 +1680,19 @@ async function start(): Promise<void> {
     target: makeStamp(255, 48, 32, 120),
     work: makeStamp(64, 160, 255, 130),
   };
-  const first = maps.find((map) => map.id === state.mapId) ?? maps[0];
+  const first = maps.find((map) => map.id === state.mapId);
   if (!first) {
-    showMessage('The game folder has no maps in MAP.');
+    showMessage(`${profile.title} has no map ${state.mapId}. The list of its maps is one step back.`);
     return;
   }
-  // Without a season in the URL, start in the season the game plays the map in.
-  if (hasSeasons && !new URLSearchParams(location.hash.slice(1)).has('season')) {
+  // Without a season in the address, start in the season the game plays the map in.
+  if (hasSeasons && !asked.has('season')) {
     state.season = first.season;
     syncControls();
   }
+  // Asked to begin afresh: the battle that was in progress on this map is let go. The address
+  // loses the asking as soon as the map is open, so loading the page again goes on with the new battle.
+  if (asked.has('fresh')) forgetBattle(autosaveKey(first.id));
   await selectMap(first.id);
 }
 
