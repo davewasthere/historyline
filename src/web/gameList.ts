@@ -31,10 +31,16 @@ export async function installedGameIds(shown: string): Promise<string[]> {
 /** Opens the page of another game. Everything on a page belongs to the game it was loaded for. */
 export function openGame(id: string): void {
   const next = new URL(addressOf(id), location.href);
-  const samePage = next.pathname === location.pathname;
-  location.href = next.href;
-  // Between two games of one page only the part after the # changes, which loads nothing by itself.
-  if (samePage) location.reload();
+  if (next.pathname !== location.pathname) {
+    location.href = next.href;
+    return;
+  }
+  // Between two games of one page only the part after the # differs, and going
+  // there loads nothing by itself. The address is changed in place and the
+  // page loaded again: asking to go to an address without a # (History Line's)
+  // and then to reload would reload the old address and drop the going.
+  history.replaceState(null, '', next.href);
+  location.reload();
 }
 
 /** Fills the list with the installed games and has a pick open that game's page. */
