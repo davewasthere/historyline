@@ -12,7 +12,7 @@ import { decodeShops, type MapShops } from '../formats/shops.ts';
 import { decodeTerrainTypes, type TerrainType } from '../formats/terrain.ts';
 import { decodeUnitTypes, type UnitType } from '../formats/unitTypes.ts';
 import type { Rules } from '../game/rules.ts';
-import { GAMES, type GameProfile, type Season, type TilesetFiles } from '../games.ts';
+import { GAMES, type GameId, type GameProfile, type Season, type TilesetFiles } from '../games.ts';
 
 export type { Season } from '../games.ts';
 
@@ -172,6 +172,11 @@ export interface MapInfo {
   title?: string;
   /** For such a map, what its sketch says the battle is about. */
   about?: string;
+  /**
+   * For a map of another game rebuilt as one of this game's (see
+   * src/maps/battleIsle.ts): that game's id, and the map's number there.
+   */
+  from?: { game: GameId; mapId: string };
 }
 
 export async function listMaps(source: FileSource): Promise<MapInfo[]> {

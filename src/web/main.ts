@@ -62,6 +62,7 @@ import {
 } from '../game/state.ts';
 import { rgbaBytes } from '../gfx/surface.ts';
 import { GAMES, isGameId, seasonsOf, type GameId } from '../games.ts';
+import { REBUILT_GAMES, sketchFromBattleIsle, type RebuiltGame } from '../maps/battleIsle.ts';
 import { buildMap, type MapSketch } from '../maps/sketch.ts';
 import {
   computerTableFor,
@@ -92,18 +93,21 @@ const OWNERS = [...profile.sides, 'neutral'] as const;
 const hasSeasons = seasonsOf(profile).length > 1;
 
 /** The development server hands out each installed game's files under /game/<its id>. */
-const gameFiles: FileSource = {
-  async read(path) {
-    const response = await fetch(`/game/${gameId}/${path}`);
-    if (!response.ok) throw new Error(`could not read ${path} (HTTP ${response.status})`);
-    return new Uint8Array(await response.arrayBuffer());
-  },
-  async list(directory) {
-    const response = await fetch(`/game/${gameId}/${directory}/`);
-    if (!response.ok) throw new Error(`could not list ${directory} (HTTP ${response.status})`);
-    return (await response.json()) as string[];
-  },
-};
+function filesOf(game: GameId): FileSource {
+  return {
+    async read(path) {
+      const response = await fetch(`/game/${game}/${path}`);
+      if (!response.ok) throw new Error(`could not read ${path} (HTTP ${response.status})`);
+      return new Uint8Array(await response.arrayBuffer());
+    },
+    async list(directory) {
+      const response = await fetch(`/game/${game}/${directory}/`);
+      if (!response.ok) throw new Error(`could not list ${directory} (HTTP ${response.status})`);
+      return (await response.json()) as string[];
+    },
+  };
+}
+const gameFiles = filesOf(gameId);
 
 function element<T extends HTMLElement>(id: string): T {
   const found = document.getElementById(id);
@@ -164,6 +168,27 @@ const sketches = new Map<string, MapSketch>(
 
 /** What is wrong with the sketch of the map last opened, in words; empty for a sound one and for the game's maps. */
 let sketchProblems: string[] = [];
+
+/** The tiles and tables of the Battle Isle games whose maps were rebuilt, each loaded when first needed. */
+const rebuiltAssets = new Map<RebuiltGame, Promise<GameAssets>>();
+
+/** A Battle Isle map as a sketch for a History Line map. */
+async function sketchOfRebuilt(game: RebuiltGame, mapId: string, code: string): Promise<MapSketch> {
+  const source = filesOf(game);
+  let loading = rebuiltAssets.get(game);
+  if (!loading) rebuiltAssets.set(game, (loading = loadAssets(source, GAMES[game])));
+  const [theirs, their] = await Promise.all([loading, loadMap(source, mapId, GAMES[game])]);
+  return sketchFromBattleIsle({
+    game,
+    title: `${GAMES[game].title} ${mapId}`,
+    about: `Map ${mapId} (${code}) of ${GAMES[game].title}, rebuilt with History Line's tiles and units.`,
+    map: their.map,
+    shops: their.shops,
+    terrainTypes: theirs.tilesets.summer.terrainTypes,
+    tileNames: theirs.tilesets.summer.tileNames,
+    isTransport: theirs.unitTypes.map((type) => type.isTransport),
+  });
+}
 
 /** A sketch as a map. */
 function mapFromSketch(sketch: MapSketch): LoadedMap {
@@ -920,12 +945,18 @@ function renderMapList(): void {
   // History Line's single-player maps come as two sets of the same
   // battlefields with different starting positions: in the first the
   // original's computer plays the French side, in the second the German.
-  const single = maps.filter((map) => map.singlePlayer);
+  const own = maps.filter((map) => !map.from);
+  const single = own.filter((map) => map.singlePlayer);
   const groups: [string, MapInfo[]][] = [
     [`Single-player, as ${OWNERS[0]}`, single.filter((map) => profile.computerSide(map.id) === 1)],
     [`Single-player, as ${OWNERS[1]}`, single.filter((map) => profile.computerSide(map.id) === 0)],
-    ['Two-player', maps.filter((map) => !map.singlePlayer && !map.title)],
-    ['New maps', maps.filter((map) => map.title)],
+    ['Two-player', own.filter((map) => !map.singlePlayer && !map.title)],
+    ['New maps', own.filter((map) => map.title)],
+    // Another game's maps, rebuilt as this game's.
+    ...REBUILT_GAMES.map((from): [string, MapInfo[]] => [
+      `From ${GAMES[from].title}`,
+      maps.filter((map) => map.from?.game === from),
+    ]),
   ];
   for (const [title, members] of groups) {
     if (members.length === 0) continue;
@@ -935,11 +966,15 @@ function renderMapList(): void {
     for (const map of members) {
       const button = document.createElement('button');
       button.type = 'button';
-      button.textContent = map.title ?? map.id;
+      button.textContent = map.from?.mapId ?? map.title ?? map.id;
       const battle = savedBattle(map.id);
       const season = hasSeasons ? map.season : null;
       button.title =
-        (map.title ? `${map.about ?? map.title}${season ? ` (${season})` : ''}` : `Map ${map.id}${season ? `, ${season}` : ''}`) +
+        (map.from
+          ? `${GAMES[map.from.game].title}, map ${map.from.mapId} (${map.code}), rebuilt as a History Line map`
+          : map.title
+            ? `${map.about ?? map.title}${season ? ` (${season})` : ''}`
+            : `Map ${map.id}${season ? `, ${season}` : ''}`) +
         (battle ? `; a battle is ${describeSave(battle)}` : '');
       if (map.season === 'winter') button.classList.add('winter');
       if (battle) button.classList.add('saved');
@@ -1370,12 +1405,21 @@ function renderDetails(): void {
   details.append(
     heading('Map'),
     factList([
-      ...(info?.title
+      ...(info?.from
         ? ([
-            ['Map', info.title],
-            ['About', info.about ?? 'nothing is said of it'],
-            ['In the game', `not one of its maps: made from the sketch maps/${info.id}.json`],
+            ['Map', `${GAMES[info.from.game].title} ${info.from.mapId}`],
+            ['Code', info.code || 'unknown'],
+            [
+              'In the game',
+              `not one of its maps: ${GAMES[info.from.game].title}'s map, rebuilt with History Line's tiles and units`,
+            ],
           ] as [string, string][])
+        : info?.title
+          ? ([
+              ['Map', info.title],
+              ['About', info.about ?? 'nothing is said of it'],
+              ['In the game', `not one of its maps: made from the sketch maps/${info.id}.json`],
+            ] as [string, string][])
         : ([
             ['Map', state.mapId],
             ['Code', info?.code ?? 'unknown'],
@@ -1485,7 +1529,13 @@ async function selectMap(id: string): Promise<void> {
   writeStateToUrl();
   renderMapList();
   try {
-    const sketch = sketches.get(id);
+    const from = maps.find((map) => map.id === id)?.from;
+    const code = maps.find((map) => map.id === id)?.code ?? '';
+    const sketch =
+      sketches.get(id) ??
+      (from && REBUILT_GAMES.includes(from.game as RebuiltGame)
+        ? await sketchOfRebuilt(from.game as RebuiltGame, from.mapId, code)
+        : undefined);
     sketchProblems = [];
     const next = sketch ? mapFromSketch(sketch) : await loadMap(gameFiles, id, profile);
     // Another map may have been picked while this one was loading.
@@ -1508,7 +1558,10 @@ async function selectMap(id: string): Promise<void> {
   }
   // Anything wrong with a new map's sketch is said in place of that.
   if (sketchProblems.length > 0) {
-    notice = `This map's sketch has ${sketchProblems.length} problem(s): ${sketchProblems.slice(0, 3).join('; ')}.`;
+    notice = maps.find((map) => map.id === id)?.from
+      ? `Rebuilt from another game's map. History Line's tiles cannot follow it in ${sketchProblems.length} place(s), ` +
+        `mostly along the coast; the first: ${sketchProblems[0]}.`
+      : `This map's sketch has ${sketchProblems.length} problem(s): ${sketchProblems.slice(0, 3).join('; ')}.`;
   }
   showMessage(null);
   refresh();
@@ -1758,6 +1811,16 @@ async function start(): Promise<void> {
     [assets, maps] = await Promise.all([loadAssets(gameFiles, profile), listMaps(gameFiles)]);
     for (const [id, sketch] of sketches) {
       maps.push({ id, singlePlayer: false, season: sketch.season ?? 'summer', code: '', title: sketch.title, about: sketch.about });
+    }
+    // The maps of the Battle Isle games that are installed, to be rebuilt with this game's tiles when opened.
+    for (const from of profile.sketches ? REBUILT_GAMES.filter((game) => games.includes(game)) : []) {
+      try {
+        for (const theirs of await listMaps(filesOf(from))) {
+          maps.push({ ...theirs, id: `${from}-${theirs.id}`, season: 'summer', from: { game: from, mapId: theirs.id } });
+        }
+      } catch {
+        // That game's maps cannot be listed: this game's are shown without them.
+      }
     }
   } catch (error) {
     showMessage(

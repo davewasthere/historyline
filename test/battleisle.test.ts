@@ -13,10 +13,13 @@ import { decodeShops } from '../src/formats/shops.ts';
 import { canEnter, decodeTerrainTypes, entranceTerrain } from '../src/formats/terrain.ts';
 import { decodeUnitTypes } from '../src/formats/unitTypes.ts';
 import { computerPlay } from '../src/game/computer.ts';
+import { fieldTowards } from '../src/game/movement.ts';
 import { BATTLE_ISLE_RULES } from '../src/game/rules.ts';
 import { restoreGame, saveGame } from '../src/game/save.ts';
 import { attackerSide, buildChoices, createGame, endHalf, rangeOf } from '../src/game/state.ts';
 import { GAMES, seasonsOf, type GameId } from '../src/games.ts';
+import { REBUILT_GAMES, ROAD_SIDES, sketchFromBattleIsle } from '../src/maps/battleIsle.ts';
+import { buildMap } from '../src/maps/sketch.ts';
 import { computerTableFor, FACINGS, listMaps, loadAssets, loadMap } from '../src/viewer/assets.ts';
 import { mapPixelSize, renderMap, TILE_SIZE } from '../src/viewer/render.ts';
 import { diskFiles, gameDir } from '../tools/gameFiles.ts';
@@ -314,5 +317,103 @@ for (const id of BATTLE_ISLE_GAMES) {
     }
     assert.ok(totals.moved > 1000 && totals.fights > 500, JSON.stringify(totals));
     assert.ok(totals.captures > 10 && totals.built > 100, JSON.stringify(totals));
+  });
+}
+
+// --- Battle Isle's maps rebuilt as History Line maps ---------------------------
+
+for (const id of REBUILT_GAMES) {
+  const profile = GAMES[id];
+  const missing = [profile, GAMES.historyline].find((game) => !existsSync(gameDir(game)));
+  const skip = missing ? `${missing.title} not found at ${gameDir(missing)}` : false;
+  const files = diskFiles(profile);
+
+  test(`${profile.title}: the sides its road tiles lead out by are the ones its maps use`, { skip }, async () => {
+    const assets = await loadAssets(files, profile);
+    const { terrainTypes: table, tileNames } = assets.tilesets.summer;
+    const isRoad = (terrain: number) => table[terrain]!.terrainClass === 8 && !table[terrain]!.site;
+    const takesRoad = (terrain: number) => isRoad(terrain) || table[terrain]!.site !== null;
+    // For every road tile and side: how often the field on that side is a road too.
+    const seen = new Map<string, [joined: number, all: number][]>();
+    for (const info of await listMaps(files)) {
+      const { map } = await loadMap(files, info.id, profile);
+      map.terrain.forEach((terrain, at) => {
+        if (!isRoad(terrain)) return;
+        const name = tileNames[terrain]!;
+        const counts = seen.get(name) ?? Array.from({ length: 6 }, (): [number, number] => [0, 0]);
+        seen.set(name, counts);
+        for (let direction = 0; direction < 6; direction++) {
+          const near = fieldTowards({ column: at % map.columns, row: Math.floor(at / map.columns) }, direction);
+          if (near.column < 0 || near.column >= map.columns || near.row < 0 || near.row >= map.rows) continue;
+          counts[direction]![1]++;
+          if (takesRoad(map.terrain[near.row * map.columns + near.column]!)) counts[direction]![0]++;
+        }
+      });
+    }
+    assert.deepEqual([...seen.keys()].sort(), Object.keys(ROAD_SIDES[id]).sort());
+    for (const [name, counts] of seen) {
+      const sides = counts.reduce((bits, [joined, all], direction) => bits | (all > 0 && joined / all >= 0.4 ? 1 << direction : 0), 0);
+      // A side counts as one the tile leads out by if a road lies beyond it on two maps' fields in five:
+      // for most tiles it is nearly always or hardly ever, for the docks and one crossing in between.
+      assert.equal(sides, ROAD_SIDES[id][name], name);
+    }
+  });
+
+  test(`${profile.title}: every map is rebuilt as a History Line map that can be played`, { skip }, async () => {
+    const [theirs, ours] = await Promise.all([loadAssets(files, profile), loadAssets(diskFiles(), GAMES.historyline)]);
+    const table = ours.tilesets.summer.terrainTypes;
+    const totals = { units: 0, kept: 0, problems: 0, fields: 0, fights: 0 };
+    for (const info of await listMaps(files)) {
+      const loaded = await loadMap(files, info.id, profile);
+      const sketch = sketchFromBattleIsle({
+        game: id,
+        title: `${profile.title} ${info.id}`,
+        map: loaded.map,
+        shops: loaded.shops,
+        terrainTypes: theirs.tilesets.summer.terrainTypes,
+        tileNames: theirs.tilesets.summer.tileNames,
+        isTransport: theirs.unitTypes.map((type) => type.isTransport),
+      });
+      const built = buildMap(sketch, { unitTypes: ours.unitTypes, terrainTypes: table });
+      // The same size, but for a row more where a building reaches below Battle Isle's map.
+      assert.equal(built.map.columns, loaded.map.columns, `map ${info.id}`);
+      assert.ok(built.map.rows >= loaded.map.rows && built.map.rows <= loaded.map.rows + 2, `map ${info.id}`);
+      // What the builder could not do is of a few known kinds: a coast or a road History Line has no tile for,
+      // and a unit whose History Line kind cannot stand where Battle Isle's stood.
+      for (const problem of built.problems) {
+        assert.match(problem, /do not join|^no tile has|stands on ground it cannot enter|stands on a building|has no room|already is/, `map ${info.id}`);
+      }
+      totals.problems += built.problems.length;
+      totals.fields += loaded.map.columns * loaded.map.rows;
+
+      const state = createGame(built.map, ours.unitTypes, table, built.shops, ours.rules);
+      // The same buildings on the same fields, with the same owners.
+      const original = createGame(loaded.map, theirs.unitTypes, theirs.tilesets.summer.terrainTypes, loaded.shops, theirs.rules);
+      const buildingsOf = (game: typeof state) =>
+        game.buildings.map((building) => `${building.kind} ${building.owner} ${building.entrance.column},${building.entrance.row} ${building.resources}`).sort();
+      assert.deepEqual(buildingsOf(state), buildingsOf(original), `map ${info.id}`);
+      // Every unit but Aldinium, mines and what flies or sails inside something History Line has no like of.
+      const their = original.units.filter((unit) => !unit.inside).length;
+      const kept = state.units.filter((unit) => !unit.inside).length;
+      assert.ok(kept <= their, `map ${info.id}: ${kept} of ${their} units`);
+      totals.units += their;
+      totals.kept += kept;
+      for (const unit of state.units) {
+        // German kinds for the first side, French for the second.
+        if (unit.side === 0) assert.ok(unit.type <= 35, `map ${info.id}: ${ours.unitTypes[unit.type]!.name}`);
+        if (unit.side === 1) assert.ok(unit.type >= 10, `map ${info.id}: ${ours.unitTypes[unit.type]!.name}`);
+      }
+      let seed = Number(info.id) + 1;
+      const random = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x80000000);
+      for (let half = 0; half < 4 && state.winner === null; half++) {
+        for (const side of [attackerSide(state), state.mover]) computerPlay(state, side, { table: ours.computerTables[side], random });
+        totals.fights += endHalf(state).fights.length;
+      }
+    }
+    assert.ok(totals.kept > totals.units * 0.85, JSON.stringify(totals));
+    // The tiles follow the maps on most fields. A coast History Line cannot draw is told twice, once from
+    // each of the two fields that do not join.
+    assert.ok(totals.problems < totals.fields * 0.25, JSON.stringify(totals));
+    assert.ok(totals.fights > 50, JSON.stringify(totals));
   });
 }

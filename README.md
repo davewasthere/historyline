@@ -242,6 +242,47 @@ that fills two fields has its second half where History Line's rule puts it
 16 of The Moon. Each game's `AMOK.DAT` names the entrances its terrain table
 has. The computer plays both sides of every map for six rounds in the tests.
 
+### Battle Isle's maps as History Line maps
+
+With Battle Isle or The Desert installed, History Line's map list has their
+maps too, under "From Battle Isle" and "From Battle Isle: The Desert": the
+same battlefields, laid with History Line's tiles, held by History Line's
+units and played by History Line's rules. They are rebuilt from the
+installed game each time one is opened. Nothing of them is kept in this
+project: the maps are Battle Isle's own.
+
+`src/maps/battleIsle.ts` turns a Battle Isle map into a sketch, and the
+builder that makes maps from sketches (see [Making maps](#making-maps)) lays
+the tiles:
+
+- Ground goes by its terrain class: water, forest, mountains and open ground
+  stay what they were. Medium-deep water becomes deep water, a river shallow
+  water, walls barbed wire, ruins houses, and The Desert's sand and scrub
+  History Line's grass and bare ground.
+- A road field gets a road to each neighbour its tile leads to. Which sides
+  a road tile leads out by is not in the files. It was worked out from the 68
+  maps: on a side a tile leads out by, the next field is nearly always a road
+  too. A test checks the table against the installed games.
+- Buildings stand on the same fields with the same owners, earnings and
+  units inside; the two games lay them out alike.
+- Every unit becomes the History Line kind that does its job, the German one
+  for the first side and the French one for the second: infantry for the
+  R-1 Demon, the A7V or a Mark I for the T-4, heavy artillery for the HG-12,
+  a submarine for the U-7C, and so on. The table is `UNIT_KINDS` in that
+  file, and it is a choice, not a fact. Aldinium and mines are left out, and
+  so is what a transport aircraft or a carrier holds.
+
+History Line's tiles cannot follow everything. It has eight shore tiles, so
+a coast that runs level, or the foot of an island, does not join up, and it
+lacks some of Battle Isle's road forks. The viewer says how many such places
+a map has when it is opened. Over the 68 maps about one field in ten has a
+side that does not join, nearly all of them on the coast. A few units come
+to stand on ground their History Line kind cannot enter (a gun in a forest,
+a bomber over mountains); they are placed all the same and can move off it.
+Unit strengths and prices are History Line's, so a battle is not balanced
+the way Battle Isle's was. The Moon of Chromos, with its other ground and
+other units, is not rebuilt.
+
 ## Battle Isle 2
 
 Battle Isle 2 (1994) and its add-on, the Scenery disk, are a later program
