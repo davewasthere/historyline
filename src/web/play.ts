@@ -16,7 +16,7 @@
 import type { Side } from '../formats/map.ts';
 import { canEnter, terrainClassName, terrainMaskNames } from '../formats/terrain.ts';
 import type { UnitType, Weapon } from '../formats/unitTypes.ts';
-import { ATTACKS_INDIRECTLY, ATTACKS_NEVER_BACK } from '../game/combat.ts';
+import { ATTACKS_INDIRECTLY, ATTACKS_NEVER_BACK, MAX_EXPERIENCE } from '../game/combat.ts';
 import { computerPlay, type ComputerTurn } from '../game/computer.ts';
 import type { Field } from '../game/movement.ts';
 import { restoreGame, saveGame } from '../game/save.ts';
@@ -926,6 +926,167 @@ function unitCanvas(type: number, side: Side | null, facing: number): HTMLCanvas
   return canvas;
 }
 
+const SVG = 'http://www.w3.org/2000/svg';
+
+/** A five-pointed star round a point, as the path of an SVG. */
+function starPath(x: number, y: number, radius: number): string {
+  let path = '';
+  for (let point = 0; point < 10; point++) {
+    const reach = point % 2 === 0 ? radius : radius * 0.42;
+    const angle = (Math.PI * point) / 5 - Math.PI / 2;
+    path += `${point === 0 ? 'M' : 'L'}${(x + reach * Math.cos(angle)).toFixed(2)} ${(y + reach * Math.sin(angle)).toFixed(2)}`;
+  }
+  return `${path}Z`;
+}
+
+/**
+ * The marks for experience, each drawn in a square of 24. They follow the
+ * game's: for one to four steps that many small stars, set as the game sets
+ * them (one; two aslant; three in a triangle; four in a diamond); for five
+ * one large star; for the sixth and last a cross with flared arms.
+ */
+const SMALL_STAR = 4.7;
+const SMALL_STARS: readonly (readonly [number, number])[][] = [
+  [[12, 12.5]],
+  [[7.5, 8.5], [16.5, 16.5]],
+  [[12, 7], [6.5, 17], [17.5, 17]],
+  [[12, 5.5], [5.5, 12.5], [18.5, 12.5], [12, 19.5]],
+];
+const LARGE_STAR = starPath(12, 12.8, 11.6);
+const CROSS = 'M5 1H19Q15 7 14 10Q17 9 23 5V19Q17 15 14 14Q15 17 19 23H5Q9 17 10 14Q7 15 1 19V5Q7 9 10 10Q9 7 5 1Z';
+
+/** A unit's experience as a mark: stars or the cross. With no experience there is no mark, only its room. */
+function experienceMarks(experience: number): HTMLElement {
+  const marks = document.createElement('span');
+  marks.className = 'rank';
+  marks.setAttribute('role', 'img');
+  marks.setAttribute('aria-label', `experience ${experience} of ${MAX_EXPERIENCE}`);
+  marks.title = `experience ${experience} of ${MAX_EXPERIENCE}`;
+  if (experience <= 0) return marks;
+  const small = SMALL_STARS[experience - 1];
+  const svg = document.createElementNS(SVG, 'svg');
+  svg.setAttribute('viewBox', '-1 -1 26 26');
+  svg.setAttribute('class', experience >= MAX_EXPERIENCE ? 'cross' : 'stars');
+  svg.setAttribute('aria-hidden', 'true');
+  const drawn = document.createElementNS(SVG, 'path');
+  drawn.setAttribute(
+    'd',
+    small ? small.map(([x, y]) => starPath(x, y, SMALL_STAR)).join('') : experience >= MAX_EXPERIENCE ? CROSS : LARGE_STAR,
+  );
+  svg.append(drawn);
+  marks.append(svg);
+  return marks;
+}
+
+/** A unit's strength: a mark for each vehicle, gun or squad of a full unit, the lost ones hollow. */
+function strengthMarks(count: number, full: number): HTMLElement {
+  const marks = document.createElement('div');
+  marks.className = 'pips';
+  marks.setAttribute('role', 'img');
+  marks.setAttribute('aria-label', `strength ${count} of ${full}`);
+  marks.title = `strength ${count} of ${full}`;
+  for (let i = 0; i < Math.max(full, count); i++) marks.append(textElement('span', i < count ? 'pip' : 'pip lost', ''));
+  return marks;
+}
+
+/** A line of the unit's card that shows a number as marks: what it is, the marks, and the number in words. */
+function meter(label: string, marks: HTMLElement, value: string): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'meter';
+  row.append(textElement('span', 'label', label), marks, textElement('span', 'sub', value));
+  return row;
+}
+
+/** What a kind of unit fires at, how hard and how far: the table the game's own information screen shows. */
+function weaponTable(type: UnitType): HTMLTableElement {
+  const table = document.createElement('table');
+  table.className = 'weapons';
+  const cell = (tag: 'th' | 'td', text: string, scope?: 'col' | 'row') => {
+    const made = document.createElement(tag);
+    made.textContent = text;
+    if (scope) (made as HTMLTableCellElement).scope = scope;
+    return made;
+  };
+  const head = table.createTHead().insertRow();
+  head.append(cell('th', 'Weapons', 'col'), cell('th', 'Power', 'col'), cell('th', 'Range', 'col'));
+  const body = table.createTBody();
+  const rows: [string, Weapon | null][] = [
+    ['Air', type.weapons.air],
+    ['Ground', type.weapons.ground],
+    ['Water', type.weapons.water],
+  ];
+  for (const [against, weapon] of rows) {
+    const row = body.insertRow();
+    row.append(cell('th', against, 'row'));
+    if (!weapon || weapon.power === 0) {
+      row.className = 'unarmed';
+      row.append(cell('td', '–'), cell('td', '–'));
+    } else {
+      row.append(cell('td', String(weapon.power)), cell('td', weapon.range === 0 ? 'fires back only' : String(weapon.range)));
+    }
+  }
+  return table;
+}
+
+/** The facts of a kind of unit that the card shows as marks, a table or tiles, and so not in its list. */
+const ON_THE_CARD = new Set([
+  'Class',
+  'Movement budget',
+  'Speed',
+  'Armour',
+  'Group size',
+  'Against air',
+  'Against ground',
+  'Against water',
+  'Cost',
+]);
+
+/**
+ * The selected unit's card: its picture, name and side; its experience as
+ * stars or the cross and its strength as pips; its weapons; its numbers; what else is to be said of
+ * its kind; and what it can do in this half.
+ */
+function unitCard(unit: Unit, type: UnitType, now: string, more: [string, string][]): HTMLElement {
+  const card = document.createElement('section');
+  card.className = 'unit-card';
+
+  const head = document.createElement('div');
+  head.className = 'unit-head';
+  const portrait = unitCanvas(unit.type, unit.side, unit.facing);
+  portrait.className = 'portrait';
+  const names = document.createElement('div');
+  names.append(
+    textElement('h2', 'unit-name', unitName(unit.type)),
+    textElement('div', 'sub', `${sideName(unit.side)} · ${type.className.toLowerCase()}`),
+  );
+  head.append(portrait, names);
+
+  const tiles = document.createElement('div');
+  tiles.className = 'stats';
+  const numbers: [string, number][] = [
+    ['Armour', type.armour],
+    ['Speed', type.speed],
+    ['Movement', type.movementBudget],
+    ['Cost', type.price],
+  ];
+  for (const [label, value] of numbers) {
+    const tile = document.createElement('div');
+    tile.append(textElement('span', 'number', String(value)), textElement('span', 'label', label));
+    tiles.append(tile);
+  }
+
+  card.append(
+    head,
+    meter('Experience', experienceMarks(unit.experience), `${unit.experience} of ${MAX_EXPERIENCE}`),
+    meter('Strength', strengthMarks(unit.count, type.groupSize), `${unit.count} of ${type.groupSize}`),
+    weaponTable(type),
+    tiles,
+    factList([...unitFacts(type).filter(([term]) => !ON_THE_CARD.has(term)), ...more]),
+    textElement('p', 'unit-now', now),
+  );
+  return card;
+}
+
 /** Shows the inside of a transport or building in the dialog. */
 function openInside(holder: Holder): void {
   if (holder !== inside) picked = null;
@@ -975,17 +1136,13 @@ function placeCard(holder: Holder, unit: Unit | undefined, number: number): HTML
   }
   const type = assets.unitTypes[unit.type];
   const full = type?.groupSize ?? unit.count;
-  const pips = document.createElement('div');
-  pips.className = 'pips';
-  pips.title = `strength ${unit.count} of ${full}`;
-  for (let i = 0; i < full; i++) pips.append(textElement('span', i < unit.count ? 'pip' : 'pip lost', ''));
   card.append(
     unitCanvas(unit.type, unit.side, unit.facing),
     textElement('div', 'place-name', unitName(unit.type)),
     textElement('div', 'sub', sideName(unit.side)),
-    pips,
+    strengthMarks(unit.count, full),
     textElement('div', 'sub', `strength ${unit.count} of ${full}`),
-    textElement('div', 'sub', `experience ${unit.experience}`),
+    experienceMarks(unit.experience),
   );
   if (unit.cargo.length) {
     card.append(textElement('div', 'sub', `carrying ${unit.cargo.map((carried) => unitName(carried.type)).join(', ')}`));
@@ -1140,6 +1297,11 @@ function renderInside(): void {
 
 function renderSelection(): void {
   if (!selected || !game) return;
+  const unit = selectedUnit();
+  const type = unit ? assets.unitTypes[unit.type] : undefined;
+  const holder = selectedHolder();
+  if (unit && type) renderSelectedUnit(unit, type);
+  if (holder) renderHolder(holder);
   const terrain = terrainAt(selected);
   const terrainType = game.terrainTypes[terrain];
   details.append(
@@ -1152,32 +1314,25 @@ function renderSelection(): void {
       ],
     ]),
   );
-  const unit = selectedUnit();
-  const type = unit ? assets.unitTypes[unit.type] : undefined;
-  const holder = selectedHolder();
-  if (!unit || !type) {
-    if (holder) renderHolder(holder);
-    return;
-  }
+}
 
-  const facts: [string, string][] = [
-    ['Strength', `${unit.count} of ${type.groupSize}`],
-    ['Experience', String(unit.experience)],
-    ...unitFacts(type),
-  ];
-  if (type.buildsDepots) facts.push(['Supplies', `${unit.supplies} ${unit.supplies === 1 ? 'piece' : 'pieces'} of work left`]);
-  const note = document.createElement('p');
-  note.className = 'sub';
+/** The selected unit's card, with what it can do in this half and what the marks on the map mean. */
+function renderSelectedUnit(unit: Unit, type: UnitType): void {
+  if (!game) return;
+  const more: [string, string][] = [];
+  if (type.buildsDepots) more.push(['Supplies', `${unit.supplies} ${unit.supplies === 1 ? 'piece' : 'pieces'} of work left`]);
+  let now: string;
+  let note = '';
   if (computerPlays(unit.side)) {
-    facts.push(['This half', 'The computer plays this side.']);
+    now = 'The computer plays this side.';
   } else if (unit.side === game.mover) {
     const reach = selectedReach();
     const blocked = cannotMoveReason(game, unit);
-    facts.push(['This half', blocked ?? 'Can move: click a bright field.']);
+    now = blocked ?? 'Can move: click a bright field.';
     if (reach && blocked === null && !leaving) {
-      facts.push(['In reach', `${reach.count} ${reach.count === 1 ? 'field' : 'fields'}`]);
+      more.push(['In reach', `${reach.count} ${reach.count === 1 ? 'field' : 'fields'}`]);
     }
-    note.textContent =
+    note =
       'Bright fields are where this unit can move. A bright transport or building entrance takes it in; ' +
       'the entrance of a building that is not its side\'s is taken when the turn ends. ' +
       'Dimmed fields are not in reach; very dark ones are terrain it can never enter.';
@@ -1185,18 +1340,16 @@ function renderSelection(): void {
     const blocked = cannotWorkReason(game, unit);
     const order = workOf(game, unit);
     const places = selectedPlaces().length;
-    facts.push([
-      'This half',
+    now =
       blocked ??
-        (order
-          ? `Ordered to ${describeWork(order.work)} on field ${order.target.column}, ${order.target.row}. Click it again to cancel.`
-          : places
-            ? `Can ${type.buildsDepots ? 'work on a depot' : 'dig'}: click a blue field.`
-            : type.buildsDepots
-              ? 'No ground near it can take a depot.'
-              : 'No ground next to it can be dug.'),
-    ]);
-    note.textContent = type.buildsDepots
+      (order
+        ? `Ordered to ${describeWork(order.work)} on field ${order.target.column}, ${order.target.row}. Click it again to cancel.`
+        : places
+          ? `Can ${type.buildsDepots ? 'work on a depot' : 'dig'}: click a blue field.`
+          : type.buildsDepots
+            ? 'No ground near it can take a depot.'
+            : 'No ground next to it can be dug.');
+    note = type.buildsDepots
       ? 'Blue fields are where this unit can prepare the ground for a depot, or build one on ground already prepared. ' +
         'A depot needs four free fields of open ground: the blue one and the three below it. ' +
         'The work is done when the turn ends.'
@@ -1206,20 +1359,18 @@ function renderSelection(): void {
     const blocked = cannotAttackReason(game, unit);
     const order = orderOf(game, unit);
     const targets = selectedTargets().length;
-    facts.push([
-      'This half',
+    now =
       blocked ??
-        (order
-          ? `Ordered to attack field ${order.column}, ${order.row}. Click it again to cancel.`
-          : targets
-            ? 'Can attack: click a red field.'
-            : 'No enemy unit is in range.'),
-    ]);
-    if (blocked === null) facts.push(['In range', `${targets} enemy ${targets === 1 ? 'unit' : 'units'}`]);
-    note.textContent = 'Red fields hold enemy units this unit can attack. Attacks are carried out when the turn ends.';
+      (order
+        ? `Ordered to attack field ${order.column}, ${order.row}. Click it again to cancel.`
+        : targets
+          ? 'Can attack: click a red field.'
+          : 'No enemy unit is in range.');
+    if (blocked === null) more.push(['In range', `${targets} enemy ${targets === 1 ? 'unit' : 'units'}`]);
+    note = 'Red fields hold enemy units this unit can attack. Attacks are carried out when the turn ends.';
   }
-  details.append(heading(describeUnit(unit)), factList(facts), note);
-  if (holder) renderHolder(holder);
+  details.append(unitCard(unit, type, now, more));
+  if (note) details.append(textElement('p', 'sub', note));
 }
 
 function renderDetails(): void {

@@ -10,6 +10,10 @@
   --accent-text: #ffffff;
   --hover: #ebe9e2;
   --winter: #4a7fb5;
+  --gold: #d9a514;
+  --gold-edge: #8a6508;
+  --iron: #2a2b2f;
+  --iron-edge: #8d9097;
   font: 14px/1.4 system-ui, 'Segoe UI', sans-serif;
 }
 
@@ -24,7 +28,11 @@
     --accent: #8fb489;
     --accent-text: #10140f;
     --hover: #2e2f2b;
-  --winter: #7fb0e0;
+    --winter: #7fb0e0;
+    --gold: #f0c040;
+    --gold-edge: #a37c12;
+    --iron: #17181a;
+    --iron-edge: #c9ccd2;
   }
 }
 
@@ -358,6 +366,203 @@ canvas {
 
 .details > button {
   margin-right: 0.4rem;
+}
+
+/* --- the selected unit's card ------------------------------------------------ */
+
+.unit-card {
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.unit-card > * {
+  padding: 0.55rem 0.7rem;
+  border-top: 1px solid var(--line);
+}
+
+.unit-card > :first-child {
+  border-top: 0;
+}
+
+.unit-head {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  background: var(--panel);
+}
+
+/* The unit's picture, on ground the colour of the map's surround. */
+.unit-head .portrait {
+  flex: none;
+  width: 72px;
+  height: 72px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--stage);
+}
+
+.details .unit-name {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.unit-card .label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.meter {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.meter .label {
+  flex: none;
+  width: 5.2rem;
+}
+
+.meter .sub {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+/*
+ * Experience: one to four small stars, a large star for five, and for six a
+ * cross of dark iron with a bright rim. With none there is only its room.
+ */
+.rank {
+  display: inline-flex;
+  flex: none;
+  width: 32px;
+  height: 32px;
+}
+
+.rank svg {
+  width: 100%;
+  height: 100%;
+  stroke-linejoin: round;
+}
+
+.rank .stars {
+  fill: var(--gold);
+  stroke: var(--gold-edge);
+  stroke-width: 0.7;
+}
+
+.rank .cross {
+  fill: var(--iron);
+  stroke: var(--iron-edge);
+  stroke-width: 1.8;
+}
+
+/* Strength, larger than in a place of a transport or building. */
+.unit-card .pips {
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 0;
+}
+
+.unit-card .pip {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.weapons {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A table is not a box: the card's padding goes on its cells. */
+.unit-card > .weapons {
+  padding: 0;
+}
+
+.weapons th,
+.weapons td {
+  padding: 0.15rem 0.7rem;
+  text-align: right;
+  font-weight: 400;
+}
+
+.weapons th:first-child {
+  text-align: left;
+}
+
+.weapons thead th {
+  padding-top: 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.weapons tbody tr:last-child > * {
+  padding-bottom: 0.5rem;
+}
+
+.weapons tbody td {
+  font-weight: 600;
+}
+
+.weapons .unarmed > * {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.stats > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stats .number {
+  font-size: 1.15rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.unit-card dl {
+  font-size: 0.85rem;
+}
+
+.unit-card dl:empty {
+  display: none;
+}
+
+/* What the unit can do in this half. */
+.unit-card .unit-now {
+  margin: 0;
+  border-left: 3px solid var(--accent);
+  background: var(--hover);
+}
+
+/* In a place of a transport or building the mark is smaller. */
+.place .rank {
+  width: 20px;
+  height: 20px;
+  margin-top: 0.3rem;
 }
 
 /* The dialog that shows the inside of a transport or building. */

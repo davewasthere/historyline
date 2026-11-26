@@ -91,6 +91,13 @@ looked at, goes from the first page straight to its missions.
 A round has two halves. In the first the German side moves and the French
 side orders attacks; in the second they swap. The toolbar says which is which.
 
+- To see what a unit is: click it. The side panel shows its card: its
+  picture, its experience marked as the game marks it (one to four small
+  stars, a large star for five, a cross for the sixth and last step; the
+  marks are drawn here, though the game has its own in `LIB\EXP.LIB`), its
+  strength as a mark for each vehicle, gun or squad of a full unit with the
+  lost ones hollow, its weapons against air, ground and water, its armour,
+  speed, movement and cost, and what it can do in this half.
 - To move: click a unit of the side that moves, then a bright field.
 - To load a unit onto a transport, or put it into a building of its own side:
   move it onto the transport or the building's entrance, which are bright if
