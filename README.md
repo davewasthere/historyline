@@ -81,9 +81,11 @@ It has three pages, one after the other:
 - **The battle**, as described under [Playing](#playing). "‹ Maps" in its
   toolbar leads back to the list, where the battle left can be continued.
   Who plays, the season and the colours are not changed during a battle: its
-  toolbar has only whether units are shown, the zoom, and the turn. What the
-  map's buildings are and what its factories build is on the page of the
-  maps, and in a building's own dialog.
+  toolbar has only whether units are shown, the zoom, and the turn. Of the
+  map its side panel says only what changes: each side's units, its points
+  and what it earns a round. What the map is, what its buildings are and
+  what its factories build is on the page of the maps, and in a building's
+  own dialog.
 
 What was chosen is in the page's address, so a battle's address opens that
 battle again, and an address from before there were three pages

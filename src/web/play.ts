@@ -1395,16 +1395,8 @@ function renderSelectedUnit(unit: Unit, type: UnitType): void {
 function renderDetails(): void {
   details.replaceChildren();
   if (!loaded || !game) return;
-  const { map } = game;
   renderSelection();
 
-  const info = maps.find((entry) => entry.id === state.mapId);
-  const seasonNote = !info
-    ? 'unknown'
-    : info.season === state.season
-      ? info.season
-      : `${info.season} (shown in ${state.season})`;
-  const count = (side: Side) => game!.units.filter((unit) => unit.side === side && !unit.destroyed).length;
   const { fights, captures, works } = lastReport ?? { fights: [], captures: [], works: [] };
   const computerDid = computerTurns
     .map((turn): [string, string] => [`${OWNERS[turn.side]} side`, describeComputerTurn(turn)])
@@ -1427,43 +1419,15 @@ function renderDetails(): void {
       itemList(fights.map(describeFight)),
     );
   }
-  details.append(
-    heading('Map'),
-    factList([
-      ...(info?.from
-        ? ([
-            ['Map', `${GAMES[info.from.game].title} ${info.from.mapId}`],
-            ['Code', info.code || 'unknown'],
-            [
-              'In the game',
-              `not one of its maps: ${GAMES[info.from.game].title}'s map, rebuilt with History Line's tiles and units`,
-            ],
-          ] as [string, string][])
-        : info?.title
-          ? ([
-              ['Map', info.title],
-              ['About', info.about ?? 'nothing is said of it'],
-              ['In the game', `not one of its maps: made from the sketch maps/${info.id}.json`],
-            ] as [string, string][])
-        : ([
-            ['Map', state.mapId],
-            ['Code', info?.code ?? 'unknown'],
-            [
-              'In the game',
-              info?.singlePlayer
-                ? `one player, as the ${OWNERS[profile.computerSide(state.mapId) === 0 ? 1 : 0]} side against the computer`
-                : 'two players',
-            ],
-          ] as [string, string][])),
-      ['Game', profile.title],
-      ...(hasSeasons ? ([['Season', seasonNote]] as [string, string][]) : []),
-      ['Size', `${map.columns} × ${map.rows} fields`],
-      [`${OWNERS[0]} units`, String(count(0))],
-      [`${OWNERS[1]} units`, String(count(1))],
-      [`${OWNERS[0]} points`, `${game.points[0]}, earning ${incomeOf(game, 0)} a round`],
-      [`${OWNERS[1]} points`, `${game.points[1]}, earning ${incomeOf(game, 1)} a round`],
-    ]),
-  );
+  // What the map is and how it was made is on the page of the maps; here is only what changes.
+  const side = (one: Side): [string, string] => {
+    const units = game!.units.filter((unit) => unit.side === one && !unit.destroyed).length;
+    return [
+      OWNERS[one],
+      `${units} ${units === 1 ? 'unit' : 'units'} · ${game!.points[one]} points, earning ${incomeOf(game!, one)} a round`,
+    ];
+  };
+  details.append(heading('Sides'), factList([side(0), side(1)]));
 }
 
 function describeWork(work: WorkReport['work']): string {
