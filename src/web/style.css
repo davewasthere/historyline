@@ -404,6 +404,21 @@ canvas {
   background: var(--stage);
 }
 
+.unit-names {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The side's flag, at the end of the card's head as at the end of the game's status line. */
+.unit-head .flag {
+  flex: none;
+  align-self: flex-start;
+  width: 30px;
+  height: 21px;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px var(--line);
+}
+
 .details .unit-name {
   margin: 0;
   font-size: 1rem;

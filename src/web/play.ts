@@ -951,6 +951,26 @@ const SMALL_STARS: readonly (readonly [number, number])[][] = [
   [[7.5, 8.5], [16.5, 16.5]],
   [[12, 7], [6.5, 17], [17.5, 17]],
   [[12, 5.5], [5.5, 12.5], [18.5, 12.5], [12, 19.5]],
+/** The side's flag, in a game whose sides have flags; null for a unit of neither side and in the other games. */
+function sideFlag(side: Side | null): SVGSVGElement | null {
+  const flag = side === null ? undefined : profile.flags?.[side];
+  if (!flag) return null;
+  const svg = document.createElementNS(SVG, 'svg');
+  svg.setAttribute('viewBox', '0 0 30 21');
+  svg.setAttribute('class', 'flag');
+  svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label', `${sideName(side)} flag`);
+  flag.stripes.forEach((colour, number) => {
+    const stripe = document.createElementNS(SVG, 'rect');
+    stripe.setAttribute(flag.upright ? 'x' : 'y', String(number * (flag.upright ? 10 : 7)));
+    stripe.setAttribute('width', flag.upright ? '10' : '30');
+    stripe.setAttribute('height', flag.upright ? '21' : '7');
+    stripe.setAttribute('fill', colour);
+    svg.append(stripe);
+  });
+  return svg;
+}
+
 ];
 const LARGE_STAR = starPath(12, 12.8, 11.6);
 const CROSS = 'M5 1H19Q15 7 14 10Q17 9 23 5V19Q17 15 14 14Q15 17 19 23H5Q9 17 10 14Q7 15 1 19V5Q7 9 10 10Q9 7 5 1Z';
@@ -1042,7 +1062,7 @@ const ON_THE_CARD = new Set([
 ]);
 
 /**
- * The selected unit's card: its picture, name and side; its experience as
+ * The selected unit's card: its picture, name, side and flag; its experience as
  * stars or the cross and its strength as pips; its weapons; its numbers; what else is to be said of
  * its kind; and what it can do in this half.
  */
@@ -1055,7 +1075,10 @@ function unitCard(unit: Unit, type: UnitType, now: string, more: [string, string
   const portrait = unitCanvas(unit.type, unit.side, unit.facing);
   portrait.className = 'portrait';
   const names = document.createElement('div');
+  names.className = 'unit-names';
   names.append(
+  const flag = sideFlag(unit.side);
+  if (flag) head.append(flag);
     textElement('h2', 'unit-name', unitName(unit.type)),
     textElement('div', 'sub', `${sideName(unit.side)} · ${type.className.toLowerCase()}`),
   );

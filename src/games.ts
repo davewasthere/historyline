@@ -51,6 +51,12 @@ export interface TilesetFiles {
   terrain: string;
 }
 
+/** A flag of three stripes of one width: their colours from the top down, or from the hoist out if they stand upright. */
+export interface Flag {
+  stripes: readonly [string, string, string];
+  upright: boolean;
+}
+
 export interface GameProfile {
   id: GameId;
   title: string;
@@ -59,6 +65,8 @@ export interface GameProfile {
   folder: string;
   /** What the two sides are called. */
   sides: readonly [string, string];
+  /** The two sides' flags, in a game whose sides have them. */
+  flags?: readonly [Flag, Flag];
   /** The sets of tiles: History Line's two seasons, or the one set every map of the game is drawn with. */
   tilesets: { summer: TilesetFiles; winter?: TilesetFiles };
   /** The unit pictures, six for each kind. */
@@ -129,6 +137,11 @@ export const GAMES: Record<GameId, GameProfile> = {
     install: 'historyline',
     folder: '',
     sides: ['German', 'French'],
+    // The German Empire's black, white and red, and the French tricolour.
+    flags: [
+      { stripes: ['#16171a', '#f2f2ee', '#c8202c'], upright: false },
+      { stripes: ['#24408e', '#f2f2ee', '#c8202c'], upright: true },
+    ],
     tilesets: {
       summer: { library: 'LIB/PARTS.LIB', names: 'LIB/PARTS.DAT', terrain: 'WW1GNDS.DAT' },
       winter: { library: 'LIB/PARTW.LIB', names: 'LIB/PARTW.DAT', terrain: 'WW1GNDW.DAT' },

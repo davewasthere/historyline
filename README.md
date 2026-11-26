@@ -92,7 +92,8 @@ A round has two halves. In the first the German side moves and the French
 side orders attacks; in the second they swap. The toolbar says which is which.
 
 - To see what a unit is: click it. The side panel shows its card: its
-  picture, its experience marked as the game marks it (one to four small
+  picture, its side's flag (History Line's sides have flags; Battle Isle's
+  have none), its experience marked as the game marks it (one to four small
   stars, a large star for five, a cross for the sixth and last step; the
   marks are drawn here, though the game has its own in `LIB\EXP.LIB`), its
   strength as a mark for each vehicle, gun or squad of a full unit with the
