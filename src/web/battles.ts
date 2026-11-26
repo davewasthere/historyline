@@ -29,6 +29,8 @@ export interface SavedBattle {
   /** Which sides the computer played, and the halves it had played them in; missing in older saves. */
   computer?: ComputerChoice;
   played?: [string | null, string | null];
+  /** Each side's strength when the battle began and as each half ended; missing in older saves. */
+  strengths?: [number, number][];
   /** The season it was being played in. */
   season: Season;
   /** When it was saved, as an ISO date. */

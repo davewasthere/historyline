@@ -171,6 +171,12 @@ let notice: string | null = null;
 let played: [string | null, string | null] = [null, null];
 /** What the computer did when this half began. */
 let computerTurns: ComputerTurn[] = [];
+/**
+ * Each side's strength when the battle began and as each half ended, the
+ * last entry being how the half now played began. A battle kept before
+ * these were counted has them only from when it was taken up again.
+ */
+let strengths: [number, number][] = [];
 
 /** One attack of the turn that has just ended, as the map shows it. */
 interface FightMark {
@@ -400,6 +406,13 @@ function drawFights(context: CanvasRenderingContext2D, stampOn: (stamp: HTMLCanv
   }
 }
 
+/** Each side's strength: the vehicles, guns and squads its units have left, those inside buildings and transports too. */
+function strengthsNow(): [number, number] {
+  const sum: [number, number] = [0, 0];
+  for (const unit of game?.units ?? []) if (unit.side !== null && !unit.destroyed) sum[unit.side] += unit.count;
+  return sum;
+}
+
 /** Starts the loaded map's game afresh. */
 function startGame(): void {
   if (!loaded) return;
@@ -408,6 +421,7 @@ function startGame(): void {
   clearPicks();
   played = [null, null];
   computerTurns = [];
+  strengths = [strengthsNow()];
   runComputer();
 }
 
@@ -465,6 +479,7 @@ function battleNow(current: GameState): SavedBattle {
     mapId: gameMapId,
     computer: state.computer,
     played,
+    strengths,
     season: state.season,
     savedAt: new Date().toISOString(),
     game: saveGame(current),
@@ -507,6 +522,10 @@ function takeUp(battle: SavedBattle): string | null {
   if (battle.computer && COMPUTER_CHOICES.includes(battle.computer)) state.computer = battle.computer;
   played = battle.played ?? [null, null];
   computerTurns = [];
+  const kept = Array.isArray(battle.strengths)
+    ? battle.strengths.filter((pair) => Array.isArray(pair) && pair.length === 2 && pair.every(Number.isFinite))
+    : [];
+  strengths = kept.length > 0 ? kept.map(([first, second]): [number, number] => [first, second]) : [strengthsNow()];
   runComputer();
   syncControls();
   writeStateToUrl();
@@ -1397,6 +1416,24 @@ function renderDetails(): void {
   if (!loaded || !game) return;
   renderSelection();
 
+  // What the map is and how it was made is on the page of the maps; here is only what changes.
+  const now = strengthsNow();
+  const sides = document.createElement('dl');
+  sides.className = 'sides';
+  for (const side of [0, 1] as const) {
+    const units = game.units.filter((unit) => unit.side === side && !unit.destroyed).length;
+    const name = document.createElement('dt');
+    name.append(textElement('span', `key series-${side + 1}`, ''), OWNERS[side]);
+    const numbers = document.createElement('dd');
+    numbers.append(
+      textElement('div', '', `${units} ${units === 1 ? 'unit' : 'units'}, strength ${now[side]}`),
+      textElement('div', 'sub', `${game.points[side]} points, earning ${incomeOf(game, side)} a round`),
+    );
+    sides.append(name, numbers);
+  }
+  // What was built or repaired in this half counts at once: the last entry is how the sides stand now.
+  details.append(heading('Sides'), sides, strengthGraph([...strengths.slice(0, -1), now]));
+
   const { fights, captures, works } = lastReport ?? { fights: [], captures: [], works: [] };
   const computerDid = computerTurns
     .map((turn): [string, string] => [`${OWNERS[turn.side]} side`, describeComputerTurn(turn)])
@@ -1419,15 +1456,99 @@ function renderDetails(): void {
       itemList(fights.map(describeFight)),
     );
   }
-  // What the map is and how it was made is on the page of the maps; here is only what changes.
-  const side = (one: Side): [string, string] => {
-    const units = game!.units.filter((unit) => unit.side === one && !unit.destroyed).length;
-    return [
-      OWNERS[one],
-      `${units} ${units === 1 ? 'unit' : 'units'} · ${game!.points[one]} points, earning ${incomeOf(game!, one)} a round`,
-    ];
+}
+
+const GRAPH = { width: 240, height: 64, edge: 6 };
+
+/**
+ * Each side's strength half by half as two lines over one scale from
+ * nothing to the most either side had. Moving over it shows the numbers of
+ * the half under the pointer, as do the arrow keys when it has the keyboard.
+ */
+function strengthGraph(series: [number, number][]): HTMLElement {
+  const { width, height, edge } = GRAPH;
+  const last = series.length - 1;
+  const most = Math.max(1, ...series.flat());
+  const x = (at: number) => (last === 0 ? width / 2 : edge + (at * (width - 2 * edge)) / last);
+  const y = (value: number) => height - edge - (value * (height - 2 * edge)) / most;
+  const made = (tag: string, attributes: Record<string, string | number>) => {
+    const element = document.createElementNS(SVG, tag);
+    for (const [name, value] of Object.entries(attributes)) element.setAttribute(name, String(value));
+    return element;
   };
-  details.append(heading('Sides'), factList([side(0), side(1)]));
+
+  // The half the graph ends in, counted from the battle's start, tells which half each entry closed.
+  const halfNow = game ? (game.round - 1) * 2 + game.mover : last;
+  const when = (at: number) => {
+    const half = halfNow - (last - at);
+    if (at === last) return 'Now';
+    if (half <= 0) return 'At the start';
+    return `After round ${Math.ceil(half / 2)}${half % 2 === 1 ? ', first half' : ''}`;
+  };
+
+  const plot = made('svg', { viewBox: `0 0 ${width} ${height}`, class: 'graph-plot', role: 'img', tabindex: 0 });
+  plot.setAttribute(
+    'aria-label',
+    `Strength half by half. ${[0, 1].map((side) => `${OWNERS[side]}: ${series[0]![side]} at first, ${series[last]![side]} now`).join('. ')}.`,
+  );
+  plot.append(made('line', { x1: 0, x2: width, y1: y(0), y2: y(0), class: 'floor' }));
+  const hair = made('line', { y1: 0, y2: height, class: 'hair', visibility: 'hidden' });
+  plot.append(hair);
+  for (const side of [0, 1] as const) {
+    const points = series.map((pair, at) => `${x(at).toFixed(1)},${y(pair[side]).toFixed(1)}`).join(' ');
+    plot.append(
+      made('polyline', { points, class: `line series-${side + 1}` }),
+      made('circle', { cx: x(last), cy: y(series[last]![side]), r: 3.5, class: `end series-${side + 1}` }),
+    );
+  }
+
+  const readout = document.createElement('div');
+  readout.className = 'graph-readout';
+  let shown: number | null = null;
+  const show = (at: number | null) => {
+    shown = at;
+    if (at === null) {
+      hair.setAttribute('visibility', 'hidden');
+      readout.replaceChildren(
+        textElement(
+          'span',
+          'sub',
+          last === 0 ? 'Strength, half by half: the lines grow as turns end.' : 'Strength, half by half. Move over the graph for the numbers.',
+        ),
+      );
+      return;
+    }
+    hair.setAttribute('visibility', 'visible');
+    hair.setAttribute('x1', String(x(at)));
+    hair.setAttribute('x2', String(x(at)));
+    readout.replaceChildren(textElement('span', 'sub', `${when(at)}:`));
+    for (const side of [0, 1] as const) {
+      const one = document.createElement('span');
+      one.className = 'value';
+      one.append(textElement('span', `key series-${side + 1}`, ''), textElement('span', 'number', String(series[at]![side])), ` ${OWNERS[side]}`);
+      readout.append(one);
+    }
+  };
+  const nearest = (event: PointerEvent) => {
+    const bounds = plot.getBoundingClientRect();
+    const across = ((event.clientX - bounds.left) / bounds.width) * width;
+    return last === 0 ? 0 : Math.max(0, Math.min(last, Math.round(((across - edge) / (width - 2 * edge)) * last)));
+  };
+  plot.addEventListener('pointermove', (event) => show(nearest(event as PointerEvent)));
+  plot.addEventListener('pointerleave', () => show(null));
+  plot.addEventListener('blur', () => show(null));
+  plot.addEventListener('keydown', (event) => {
+    const key = (event as KeyboardEvent).key;
+    if (key !== 'ArrowLeft' && key !== 'ArrowRight') return;
+    event.preventDefault();
+    show(Math.max(0, Math.min(last, (shown ?? last) + (key === 'ArrowLeft' ? -1 : 1))));
+  });
+  show(null);
+
+  const graph = document.createElement('div');
+  graph.className = 'graph';
+  graph.append(plot, readout);
+  return graph;
 }
 
 function describeWork(work: WorkReport['work']): string {
@@ -1713,6 +1834,7 @@ insideDialog.addEventListener('click', (event) => {
 endTurnButton.addEventListener('click', () => {
   if (!game) return;
   lastReport = endHalf(game);
+  strengths.push(strengthsNow());
   selected = null;
   leaving = null;
   // Before the computer moves anything: the attackers still stand where they fought.

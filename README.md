@@ -83,9 +83,13 @@ It has three pages, one after the other:
   Who plays, the season and the colours are not changed during a battle: its
   toolbar has only whether units are shown, the zoom, and the turn. Of the
   map its side panel says only what changes: each side's units, its points
-  and what it earns a round. What the map is, what its buildings are and
-  what its factories build is on the page of the maps, and in a building's
-  own dialog.
+  and what it earns a round, and its strength: the vehicles, guns and squads
+  all its units have left. A small graph under them draws both sides'
+  strength half by half since the battle began; moving over it shows the
+  numbers of each half. It is kept with the battle; one saved before the
+  graph was there has it from when it is taken up again. What the map is,
+  what its buildings are and what its factories build is on the page of the
+  maps, and in a building's own dialog.
 
 What was chosen is in the page's address, so a battle's address opens that
 battle again, and an address from before there were three pages

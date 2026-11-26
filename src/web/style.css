@@ -13,6 +13,8 @@
   --gold: #d9a514;
   --gold-edge: #8a6508;
   --iron: #2a2b2f;
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
   --iron-edge: #8d9097;
   font: 14px/1.4 system-ui, 'Segoe UI', sans-serif;
 }
@@ -32,6 +34,8 @@
     --gold: #f0c040;
     --gold-edge: #a37c12;
     --iron: #17181a;
+    --series-1: #3987e5;
+    --series-2: #d95926;
     --iron-edge: #c9ccd2;
   }
 }
@@ -578,6 +582,103 @@ canvas {
   width: 20px;
   height: 20px;
   margin-top: 0.3rem;
+}
+
+/* --- the two sides and their strength half by half ----------------------------- */
+
+/* A short stroke in a side's colour: the key to its line in the graph. */
+.key {
+  display: inline-block;
+  width: 12px;
+  height: 0;
+  margin-right: 0.4rem;
+  border-top: 2px solid;
+  border-radius: 1px;
+  vertical-align: middle;
+}
+
+.key.series-1 {
+  border-color: var(--series-1);
+}
+
+.key.series-2 {
+  border-color: var(--series-2);
+}
+
+.details dl.sides dt {
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.graph {
+  margin-top: 0.5rem;
+}
+
+.graph-plot {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 4px;
+  cursor: crosshair;
+}
+
+.graph-plot:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.graph-plot .floor {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.graph-plot .hair {
+  stroke: var(--muted);
+  stroke-width: 1;
+}
+
+.graph-plot .line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.graph-plot .line.series-1 {
+  stroke: var(--series-1);
+}
+
+.graph-plot .line.series-2 {
+  stroke: var(--series-2);
+}
+
+/* The lines' ends, ringed in the panel's colour so that one shows over the other. */
+.graph-plot .end {
+  stroke: var(--panel);
+  stroke-width: 2;
+}
+
+.graph-plot .end.series-1 {
+  fill: var(--series-1);
+}
+
+.graph-plot .end.series-2 {
+  fill: var(--series-2);
+}
+
+.graph-readout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.6rem;
+  min-height: 2.4em;
+  margin-top: 0.2rem;
+  font-size: 0.85rem;
+}
+
+.graph-readout .number {
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
 }
 
 /* The dialog that shows the inside of a transport or building. */
