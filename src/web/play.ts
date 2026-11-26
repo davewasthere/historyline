@@ -109,8 +109,6 @@ const details = element<HTMLElement>('details');
 const fieldInfo = element<HTMLOutputElement>('field-info');
 const message = element<HTMLParagraphElement>('message');
 const zoomSelect = element<HTMLSelectElement>('zoom');
-const paletteSelect = element<HTMLSelectElement>('palette');
-const computerSelect = element<HTMLSelectElement>('computer');
 const unitsCheckbox = element<HTMLInputElement>('show-units');
 const turnStatus = element<HTMLSpanElement>('turn-status');
 const endTurnButton = element<HTMLButtonElement>('end-turn');
@@ -119,8 +117,6 @@ const saveButton = element<HTMLButtonElement>('save');
 const loadButton = element<HTMLButtonElement>('load');
 const insideDialog = element<HTMLDialogElement>('inside');
 const insideBody = element<HTMLDivElement>('inside-body');
-const seasonInputs = [...document.querySelectorAll<HTMLInputElement>('input[name="season"]')];
-const seasonControl = element<HTMLFieldSetElement>('season');
 
 const FIELD_INFO_IDLE = fieldInfo.textContent;
 
@@ -951,6 +947,10 @@ const SMALL_STARS: readonly (readonly [number, number])[][] = [
   [[7.5, 8.5], [16.5, 16.5]],
   [[12, 7], [6.5, 17], [17.5, 17]],
   [[12, 5.5], [5.5, 12.5], [18.5, 12.5], [12, 19.5]],
+];
+const LARGE_STAR = starPath(12, 12.8, 11.6);
+const CROSS = 'M5 1H19Q15 7 14 10Q17 9 23 5V19Q17 15 14 14Q15 17 19 23H5Q9 17 10 14Q7 15 1 19V5Q7 9 10 10Q9 7 5 1Z';
+
 /** The side's flag, in a game whose sides have flags; null for a unit of neither side and in the other games. */
 function sideFlag(side: Side | null): SVGSVGElement | null {
   const flag = side === null ? undefined : profile.flags?.[side];
@@ -970,10 +970,6 @@ function sideFlag(side: Side | null): SVGSVGElement | null {
   });
   return svg;
 }
-
-];
-const LARGE_STAR = starPath(12, 12.8, 11.6);
-const CROSS = 'M5 1H19Q15 7 14 10Q17 9 23 5V19Q17 15 14 14Q15 17 19 23H5Q9 17 10 14Q7 15 1 19V5Q7 9 10 10Q9 7 5 1Z';
 
 /** A unit's experience as a mark: stars or the cross. With no experience there is no mark, only its room. */
 function experienceMarks(experience: number): HTMLElement {
@@ -1075,14 +1071,14 @@ function unitCard(unit: Unit, type: UnitType, now: string, more: [string, string
   const portrait = unitCanvas(unit.type, unit.side, unit.facing);
   portrait.className = 'portrait';
   const names = document.createElement('div');
-  names.className = 'unit-names';
   names.append(
-  const flag = sideFlag(unit.side);
-  if (flag) head.append(flag);
     textElement('h2', 'unit-name', unitName(unit.type)),
     textElement('div', 'sub', `${sideName(unit.side)} · ${type.className.toLowerCase()}`),
   );
+  names.className = 'unit-names';
   head.append(portrait, names);
+  const flag = sideFlag(unit.side);
+  if (flag) head.append(flag);
 
   const tiles = document.createElement('div');
   tiles.className = 'stats';
@@ -1399,8 +1395,7 @@ function renderSelectedUnit(unit: Unit, type: UnitType): void {
 function renderDetails(): void {
   details.replaceChildren();
   if (!loaded || !game) return;
-  const { shops } = loaded;
-  const { map, buildings } = game;
+  const { map } = game;
   renderSelection();
 
   const info = maps.find((entry) => entry.id === state.mapId);
@@ -1468,23 +1463,6 @@ function renderDetails(): void {
       [`${OWNERS[0]} points`, `${game.points[0]}, earning ${incomeOf(game, 0)} a round`],
       [`${OWNERS[1]} points`, `${game.points[1]}, earning ${incomeOf(game, 1)} a round`],
     ]),
-    heading(`Buildings (${buildings.length})`),
-    itemList(
-      buildings.map((building) => [
-        `${describeBuilding(building)} at ${building.entrance.column}, ${building.entrance.row}`,
-        [
-          `resources ${building.resources}`,
-          building.units.length ? `holds ${building.units.map((unit) => unitName(unit.type)).join(', ')}` : 'empty',
-        ].join(' · '),
-      ]),
-    ),
-    heading(`Can be built on this map (${shops.buildable.length} of ${assets.unitTypes.length})`),
-    itemList(
-      shops.buildable.map((type) => {
-        const unitType = assets.unitTypes[type];
-        return [unitName(type), unitType ? `${unitType.className} · cost ${unitType.cost ?? 'n/a'}` : ''];
-      }),
-    ),
   );
 }
 
@@ -1593,26 +1571,19 @@ async function selectMap(id: string): Promise<void> {
   refresh();
 }
 
+/**
+ * The toolbar's two controls. Who plays, the season and the colours are
+ * picked where the map is, and come with the address.
+ */
 function syncControls(): void {
-  for (const input of seasonInputs) input.checked = input.value === state.season;
-  computerSelect.value = state.computer;
   unitsCheckbox.checked = state.showUnits;
   zoomSelect.value = String(state.zoom);
-  paletteSelect.value = String(state.palette);
 }
 
 function onControlChange(): void {
-  const winter = hasSeasons && seasonInputs.find((input) => input.checked)?.value === 'winter';
-  state.season = winter ? 'winter' : 'summer';
   state.showUnits = unitsCheckbox.checked;
   state.zoom = Number(zoomSelect.value);
-  state.palette = Number(paletteSelect.value);
-  state.computer = COMPUTER_CHOICES.find((choice) => choice === computerSelect.value) ?? 'nobody';
   writeStateToUrl();
-  // Movement costs differ between the seasons.
-  if (game) game.terrainTypes = currentTerrainTypes();
-  // A side just handed to the computer is played at once.
-  runComputer();
   refresh();
 }
 
@@ -1806,23 +1777,15 @@ restartButton.addEventListener('click', () => {
 });
 saveButton.addEventListener('click', saveBattle);
 loadButton.addEventListener('click', loadBattle);
-for (const control of [...seasonInputs, unitsCheckbox, zoomSelect, paletteSelect, computerSelect]) {
+for (const control of [unitsCheckbox, zoomSelect]) {
   control.addEventListener('change', onControlChange);
 }
 
-/** Fits the page's controls to the game: its name, its sides, its colours, and whether it has seasons. */
+/** Names the page after the game, and points the way back at its maps. */
 function nameControls(): void {
   document.title = profile.title;
   battleTitle.textContent = profile.title;
   backLink.href = mapsPage(gameId, state.mapId || undefined);
-  seasonControl.hidden = !hasSeasons;
-  [...paletteSelect.options].forEach((option, index) => {
-    option.textContent = profile.palettes[index] ?? option.textContent;
-  });
-  for (const option of computerSelect.options) {
-    if (option.value === 'german') option.textContent = `plays ${OWNERS[0]}`;
-    if (option.value === 'french') option.textContent = `plays ${OWNERS[1]}`;
-  }
 }
 
 async function start(): Promise<void> {

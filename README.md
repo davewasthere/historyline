@@ -80,6 +80,10 @@ It has three pages, one after the other:
   battle" goes on with it and "Start afresh" begins a new one.
 - **The battle**, as described under [Playing](#playing). "‹ Maps" in its
   toolbar leads back to the list, where the battle left can be continued.
+  Who plays, the season and the colours are not changed during a battle: its
+  toolbar has only whether units are shown, the zoom, and the turn. What the
+  map's buildings are and what its factories build is on the page of the
+  maps, and in a building's own dialog.
 
 What was chosen is in the page's address, so a battle's address opens that
 battle again, and an address from before there were three pages
@@ -152,8 +156,8 @@ side orders attacks; in the second they swap. The toolbar says which is which.
   have a dot in the map list. This save is apart from the battle in progress and is only changed
   by "Save". Both are kept in the browser they were made in (its local
   storage for this address), not in a file.
-- "Computer" in the toolbar hands a side to the computer: German, French or
-  both. It plays its part as each half begins: its moves if its side moves,
+- The computer plays the side, or both sides, it was given when the battle
+  was started. It plays its part as each half begins: its moves if its side moves,
   its orders if its side attacks. Yellow lines show where its units moved
   from, and the side panel says what it did. Its attack orders are not shown
   (unless it plays both sides), since a player who saw them could step out of
