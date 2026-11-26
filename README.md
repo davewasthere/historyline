@@ -57,10 +57,10 @@ The image holds parts of the games, so it is for your own use: do not push
 it to a registry others can pull from. Saved battles stay in the browser, as
 they do with the development server; the image keeps nothing.
 
-The image has been built from these files on no machine yet. What was
-tried is the same layout served by a plain file server: the built pages,
-with `game-data/` under `/game` and a folder answered with its
-`index.json`, which is what `docker/nginx.conf` sets up.
+The image has been built and run once, on Docker 29 under Windows: the
+page of the games, a game's maps and a battle all opened from it, with
+`game-data/` under `/game` and a folder answered with its `index.json`,
+which is what `docker/nginx.conf` sets up.
 
 ## The viewer
 

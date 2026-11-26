@@ -16,7 +16,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 # What the viewer's pages are built from; the games' files take no part in the build.
-COPY index.html bi2.html vite.config.ts tsconfig.json ./
+COPY index.html maps.html play.html bi2.html vite.config.ts tsconfig.json ./
 COPY src src
 COPY tools tools
 COPY maps maps
