@@ -10,6 +10,7 @@ import {
   cannotMoveReason,
   createGame,
   endHalf,
+  fieldsInRange,
   moveUnit,
   orderAttack,
   orderOf,
@@ -186,6 +187,24 @@ test('a heavy gun that moved cannot fire in the next half, on either side', () =
   assert.equal(cannotAttackReason(state, moving!), null);
   endHalf(state);
   assert.equal(cannotAttackReason(state, french!), null);
+});
+
+test('a unit\'s weapons reach the fields within their range, and a gun that fires from afar not the ones beside it', () => {
+  const rows = Array.from({ length: 13 }, () => 'p'.repeat(13));
+  const { state } = game(rows, [[6, 6, ARTILLERY, 0], [1, 1, INFANTRY, 0], [11, 11, TRUCK, 0]]);
+  // The units come in the order of their fields.
+  const [infantry, gun, truck] = state.units;
+  // Range 5: the 90 fields within five of it, less the six beside it.
+  const reached = fieldsInRange(state, gun!);
+  assert.equal(reached.length, 84);
+  assert.ok(reached.some((field) => field.column === 6 && field.row === 1));
+  assert.ok(!reached.some((field) => field.column === 6 && field.row === 5));
+  assert.ok(!reached.some((field) => field.column === 6 && field.row === 6));
+  assert.ok(!reached.some((field) => field.column === 6 && field.row === 0));
+  // Range 1: the six fields beside it.
+  assert.equal(fieldsInRange(state, infantry!).length, 6);
+  // No weapon: nothing.
+  assert.deepEqual(fieldsInRange(state, truck!), []);
 });
 
 test('attacks are carried out when the half ends, and both units learn from them', () => {

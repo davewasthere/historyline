@@ -112,6 +112,10 @@ side orders attacks; in the second they swap. The toolbar says which is which.
   strength as a mark for each vehicle, gun or squad of a full unit with the
   lost ones hollow, its weapons against air, ground and water, its armour,
   speed, movement and cost, and what it can do in this half.
+- To see how far a unit fires: click it. A red line runs round the fields its
+  weapons reach from where it stands, whichever side it is of and whether or
+  not it may attack in this half. A gun that fires from afar has a second
+  line, round the fields beside it, which it cannot reach.
 - To move: click a unit of the side that moves, then a bright field.
 - To load a unit onto a transport, or put it into a building of its own side:
   move it onto the transport or the building's entrance, which are bright if

@@ -66,7 +66,7 @@ export interface MoveOptions {
 export const DIRECTIONS = 6;
 
 /** The field one step in each direction, whether or not it is on the map. */
-function around(field: Field): Field[] {
+export function around(field: Field): Field[] {
   const { column, row } = field;
   // Odd columns sit half a field lower, so their side neighbours are a row further down.
   const down = column & 1;

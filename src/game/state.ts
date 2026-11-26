@@ -115,6 +115,9 @@ import {
 import type { UnitType } from '../formats/unitTypes.ts';
 import {
   canAttack,
+  CLASS_AIR,
+  CLASS_GROUND,
+  CLASS_WATER,
   distance,
   MAX_EXPERIENCE,
   resolveFight,
@@ -717,6 +720,29 @@ function canTarget(state: GameState, unit: Unit, other: Unit, field: Field): boo
   // Units inside a transport or building are out of every fight.
   if (unit.inside || other.inside) return false;
   return canAttack(type, otherType.classBits, distance(unit, field));
+}
+
+/**
+ * The fields a unit's weapons reach from where it stands, whatever is on
+ * them: every field on which it could start an attack on a unit in the air,
+ * on the ground or on water. A gun that fires from afar does not reach the
+ * fields beside it. Empty for a unit that starts no attacks, and for one
+ * inside a transport or building.
+ */
+export function fieldsInRange(state: GameState, unit: Unit): Field[] {
+  const type = state.unitTypes[unit.type];
+  if (!type || unit.inside || unit.destroyed || type.digsTrenches) return [];
+  const kinds = [CLASS_AIR, CLASS_GROUND, CLASS_WATER];
+  const farthest = Math.max(0, ...[type.weapons.air, type.weapons.ground, type.weapons.water].map((weapon) => weapon?.range ?? 0));
+  const fields: Field[] = [];
+  for (let row = Math.max(0, unit.row - farthest); row <= Math.min(state.map.rows - 1, unit.row + farthest); row++) {
+    for (let column = Math.max(0, unit.column - farthest); column <= Math.min(state.map.columns - 1, unit.column + farthest); column++) {
+      const field = { column, row };
+      const away = distance(unit, field);
+      if (kinds.some((kind) => canAttack(type, kind, away))) fields.push(field);
+    }
+  }
+  return fields;
 }
 
 /**

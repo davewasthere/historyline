@@ -19,7 +19,7 @@ import { canEnter, terrainClassName, terrainMaskNames } from '../formats/terrain
 import type { UnitType, Weapon } from '../formats/unitTypes.ts';
 import { ATTACKS_INDIRECTLY, ATTACKS_NEVER_BACK, MAX_EXPERIENCE } from '../game/combat.ts';
 import { computerPlay, type ComputerTurn } from '../game/computer.ts';
-import type { Field } from '../game/movement.ts';
+import { around, type Field } from '../game/movement.ts';
 import { restoreGame, saveGame } from '../game/save.ts';
 import {
   attackerSide,
@@ -39,6 +39,7 @@ import {
   createGame,
   endHalf,
   fieldOf,
+  fieldsInRange,
   fieldsOf,
   incomeOf,
   isBuilding,
@@ -983,6 +984,68 @@ function fieldCentre(field: Field): { x: number; y: number } {
 }
 
 /**
+ * The corners of a field's hexagon within its tile, clockwise from the left
+ * end of its top side. Side d, towards the neighbour in direction d (N, NE,
+ * SE, S, SW, NW), runs from corner d to the next.
+ */
+const HEX_CORNERS: readonly (readonly [number, number])[] = [
+  [8, 0],
+  [16, 0],
+  [24, 12],
+  [16, 24],
+  [8, 24],
+  [0, 12],
+];
+
+/** How much of the map shows through the line round a unit's range: half. */
+const RANGE_LINE_ALPHA = 0.5;
+/** The lines are drawn whole on a layer of their own and that is laid on the map: where two meet they are then no darker. */
+const rangeLayer = document.createElement('canvas');
+
+/**
+ * Draws a red line round the fields a unit's weapons reach: along every side
+ * between a field in range and one out of it. That is the far edge of its
+ * range and, for a gun that fires from afar, the near edge too: the line
+ * round the fields beside it, which it cannot reach. The sides of its own
+ * field are left out. The line is half see-through, so that what is under it
+ * still shows.
+ */
+function drawRange(onto: CanvasRenderingContext2D, unit: Unit): void {
+  if (!game) return;
+  const fields = fieldsInRange(game, unit);
+  if (fields.length === 0) return;
+  const { columns, rows } = game.map;
+  const reached = new Set(fields.map((field) => field.row * columns + field.column));
+  const own = fieldsOf(unit);
+  rangeLayer.width = onto.canvas.width;
+  rangeLayer.height = onto.canvas.height;
+  const context = rangeLayer.getContext('2d')!;
+  context.beginPath();
+  for (const field of fields) {
+    const { x, y } = fieldOrigin(field.column, field.row);
+    around(field).forEach((next, direction) => {
+      const onMap = next.column >= 0 && next.column < columns && next.row >= 0 && next.row < rows;
+      if (onMap && reached.has(next.row * columns + next.column)) return;
+      if (own.some((one) => sameField(one, next))) return;
+      const [fromX, fromY] = HEX_CORNERS[direction]!;
+      const [toX, toY] = HEX_CORNERS[(direction + 1) % HEX_CORNERS.length]!;
+      context.moveTo(x + fromX, y + fromY);
+      context.lineTo(x + toX, y + toY);
+    });
+  }
+  context.lineCap = 'round';
+  // A dark edge first, so the line shows on any ground.
+  for (const [style, width] of [['rgba(0, 0, 0, 0.5)', 2.6], ['rgb(255, 64, 48)', 1.2]] as const) {
+    context.strokeStyle = style;
+    context.lineWidth = width;
+    context.stroke();
+  }
+  onto.globalAlpha = RANGE_LINE_ALPHA;
+  onto.drawImage(rangeLayer, 0, 0);
+  onto.globalAlpha = 1;
+}
+
+/**
  * Redraws the marks on top of the map: the selected unit's reach or targets,
  * the attacks ordered, moved and damaged units, how many units each transport
  * and building holds, the selection, the pointer.
@@ -1015,6 +1078,9 @@ function drawOverlay(): void {
   }
 
   for (const field of selectedTargets()) stampOn(stamps.target, field);
+  // A red line round what the selected unit's weapons reach, drawn over the marks on the fields.
+  const selectedOne = leaving ? null : selectedUnit();
+  if (selectedOne) drawRange(context, selectedOne);
   for (const { field } of selectedPlaces()) stampOn(stamps.work, field);
 
   if (state.showUnits) {
@@ -1736,6 +1802,17 @@ function renderSelectedUnit(unit: Unit, type: UnitType): void {
   }
   details.append(unitCard(unit, type, now, more));
   if (note) details.append(textElement('p', 'sub', note));
+  if (fieldsInRange(game, unit).length > 0) {
+    details.append(
+      textElement(
+        'p',
+        'sub',
+        type.attackMask & ATTACKS_INDIRECTLY
+          ? 'The red lines are the far and the near edge of its range: it reaches the fields between them, not the ones beside it.'
+          : 'The red line is the edge of its range: it reaches the fields inside it.',
+      ),
+    );
+  }
 }
 
 function renderDetails(): void {
