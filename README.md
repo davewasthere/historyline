@@ -145,11 +145,26 @@ side orders attacks; in the second they swap. The toolbar says which is which.
   the side that moved, and starts
   the next half. The side panel then lists what each attack did and which
   buildings changed hands. The toolbar shows each side's points.
-- The attacks of the turn that has just ended come up on the map one after
-  another: a white line from each attacker to the field it aimed at (dashed
-  if nothing was there any more), the vehicles each unit lost, and a red
-  cross on a unit destroyed. They stay until the next click on the map or
-  Esc; "Show them on the map again" in the side panel replays them.
+- The attacks of the turn that has just ended are then shown one at a time,
+  in a dialog over the map: the attacker and its target, each with the ground
+  it stood on and what it had standing round it, and after a moment what the
+  attack cost, when the vehicles, guns or squads lost fall dark and the
+  numbers come up. Beside each unit's number is its experience as it went
+  into the attack, which changes to what it came out with when the attack
+  gave it more. The dialog keeps off the attack it shows: it goes to
+  whichever edge of the map's view leaves the two fields clear, and the map
+  is scrolled if need be to bring them into what is left, the attacker's
+  field yellow and the target's red. The map is not dimmed and can still be
+  scrolled. "Next" goes on to the next attack; with "Auto" ticked, which
+  the browser remembers, they go on by themselves after about three seconds.
+  "Skip the rest", Esc, a click on the map or "End turn" ends the show. The
+  computer plays its part of the new half only then, so that the units stand
+  where they fought while their attacks are shown.
+- On the map each attack shown leaves a white line from the attacker to the
+  field it aimed at (dashed if nothing was there any more), the vehicles each
+  unit lost, and a red cross on a unit destroyed. They stay until the next
+  click on the map or Esc; "Show them again" in the side panel replays the
+  attacks.
 - "Restart" puts the map back as the game's files have it.
 - The battle in progress on each map is kept as it goes, without being
   asked: after a reload, or a look at another map, it is taken up where it

@@ -10,8 +10,9 @@
 // computer can play
 // either side or both: it plays its part when a half begins, and what it has
 // ordered is not shown to the player it plays against. When a turn ends its
-// attacks are shown on the map one after another, and stay until the next
-// click.
+// attacks are shown one at a time in a dialog that keeps off the attack on
+// the map, the two units and what each lost, and are marked on the map, where
+// the marks stay until the next click.
 
 import type { Side } from '../formats/map.ts';
 import { canEnter, terrainClassName, terrainMaskNames } from '../formats/terrain.ts';
@@ -62,7 +63,7 @@ import {
   type Unit,
   type WorkReport,
 } from '../game/state.ts';
-import { rgbaBytes } from '../gfx/surface.ts';
+import { blit, createSurface, rgbaBytes } from '../gfx/surface.ts';
 import { GAMES, seasonsOf } from '../games.ts';
 import {
   computerTableFor,
@@ -117,6 +118,8 @@ const saveButton = element<HTMLButtonElement>('save');
 const loadButton = element<HTMLButtonElement>('load');
 const insideDialog = element<HTMLDialogElement>('inside');
 const insideBody = element<HTMLDivElement>('inside-body');
+const fightDialog = element<HTMLDialogElement>('fight');
+const fightBody = element<HTMLDivElement>('fight-body');
 
 const FIELD_INFO_IDLE = fieldInfo.textContent;
 
@@ -178,7 +181,21 @@ let computerTurns: ComputerTurn[] = [];
  */
 let strengths: [number, number][] = [];
 
-/** One attack of the turn that has just ended, as the map shows it. */
+/** One of the two units of an attack, as it was when the attack was carried out. */
+interface Fighter {
+  type: number;
+  side: Side | null;
+  /** How many it had before the attack, and how many of them it lost. */
+  before: number;
+  losses: number;
+  /** The ground it stood on. */
+  terrain: number;
+  /** Its experience after the attack, and how much of it the attack gave. */
+  experience: number;
+  gained: number;
+}
+
+/** One attack of the turn that has just ended, as the map and the dialog show it. */
 interface FightMark {
   /** Where the attacker stood, and the field it aimed at. */
   from: Field;
@@ -189,6 +206,14 @@ interface FightMark {
   targetGone: boolean;
   /** True if nothing it could attack stood on the field any more. */
   missed: boolean;
+  attacker: Fighter;
+  /** The unit that was hit; null if the attack hit nothing. */
+  target: Fighter | null;
+  /** Per cent the units around the target added to the attack, and those beside it to its armour. */
+  flank: number;
+  support: number;
+  /** The names of the units lost aboard either. */
+  lostAboard: string[];
 }
 /** The attacks of the turn that has just ended, in the order they were carried out. */
 let fightMarks: FightMark[] = [];
@@ -196,10 +221,30 @@ let fightMarks: FightMark[] = [];
 let fightsShown = 0;
 /** Set while more of them are still to come up. */
 let fightTimer: number | undefined;
-/** The longest the attacks of one turn take to come up, and the bounds of the time one takes, in milliseconds. */
-const FIGHTS_PLAY_TIME = 4000;
-const FIGHT_STEP_SHORTEST = 120;
-const FIGHT_STEP_LONGEST = 500;
+/** Set while the attacks are being shown one at a time: the dialog then shows the one at `fightAt`. */
+let fightsPlaying = false;
+let fightAt = 0;
+/** Whether the attack on show has shown what it cost. */
+let fightStruck = false;
+/**
+ * What is left to do once the attacks of a turn just ended have been shown:
+ * the computer's part of the half that has begun. It waits so that the map
+ * shows the units where they fought.
+ */
+let afterFights: (() => void) | null = null;
+/** How long an attack is shown before its losses, and how long with them, in milliseconds. */
+const FIGHT_BEFORE = 900;
+const FIGHT_AFTER = 2200;
+/** How long an attack that hit nothing is shown. */
+const FIGHT_MISSED = 1400;
+/** Whether the attacks go on by themselves. Unless asked for, each waits for "Next". */
+const FIGHTS_AUTO_KEY = 'historyline.prefs.fightsAuto';
+let fightsAuto = false;
+try {
+  fightsAuto = localStorage.getItem(FIGHTS_AUTO_KEY) === '1';
+} catch {
+  // No storage: the attacks wait.
+}
 const state: ViewState = readStateFromUrl();
 
 /** The view is kept in the URL's hash so a reload or a shared link shows the same thing. */
@@ -302,39 +347,320 @@ function clearPicks(): void {
 
 // --- the last turn's attacks on the map --------------------------------------
 
-/** Notes where each attack of a turn took place. Called before anything moves again. */
+/** Notes where each attack of a turn took place and what it cost. Called before anything moves again. */
 function markFights(fights: FightReport[]): void {
-  fightMarks = fights.map((fight) => ({
-    from: { column: fight.attacker.column, row: fight.attacker.row },
-    to: fight.targetField,
-    attackerLosses: fight.attackerLosses,
-    targetLosses: fight.targetLosses,
-    attackerGone: fight.attackerLeft <= 0,
-    targetGone: fight.target !== null && fight.targetLeft <= 0,
-    missed: fight.target === null,
-  }));
+  fightMarks = fights.map((fight) => {
+    const from = { column: fight.attacker.column, row: fight.attacker.row };
+    return {
+      from,
+      to: fight.targetField,
+      attackerLosses: fight.attackerLosses,
+      targetLosses: fight.targetLosses,
+      attackerGone: fight.attackerLeft <= 0,
+      targetGone: fight.target !== null && fight.targetLeft <= 0,
+      missed: fight.target === null,
+      attacker: {
+        type: fight.attacker.type,
+        side: fight.attacker.side,
+        before: fight.attackerLeft + fight.attackerLosses,
+        losses: fight.attackerLosses,
+        terrain: terrainAt(from),
+        experience: fight.attackerExperience,
+        gained: fight.attackerGained,
+      },
+      target: fight.target && {
+        type: fight.target.type,
+        side: fight.target.side,
+        before: fight.targetLeft + fight.targetLosses,
+        losses: fight.targetLosses,
+        terrain: terrainAt(fight.targetField),
+        experience: fight.targetExperience,
+        gained: fight.targetGained,
+      },
+      flank: fight.flank,
+      support: fight.support,
+      lostAboard: fight.cargoDestroyed.map((unit) => unitName(unit.type)),
+    };
+  });
 }
 
-/** Brings the attacks up on the map one after another, the first at once. */
+// --- the last turn's attacks, one at a time ------------------------------------
+
+/** A terrain tile on a canvas of its own. */
+function tileCanvas(terrain: number): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  canvas.width = TILE_SIZE;
+  canvas.height = TILE_SIZE;
+  const tile = assets.tilesets[state.season].tiles[terrain];
+  const palette = assets.palettes[state.palette];
+  if (tile && palette) {
+    const surface = createSurface(TILE_SIZE, TILE_SIZE);
+    blit(surface, tile, 0, 0, palette);
+    canvas.getContext('2d')!.putImageData(new ImageData(rgbaBytes(surface), surface.width, surface.height), 0, 0);
+  }
+  return canvas;
+}
+
+/** Where the six of a full unit stand round its field, as parts of the ring's width from its middle: N, NE, SE, S, SW, NW. */
+const RING: readonly (readonly [number, number])[] = [
+  [0, -0.34],
+  [0.295, -0.17],
+  [0.295, 0.17],
+  [0, 0.34],
+  [-0.295, 0.17],
+  [-0.295, -0.17],
+];
+
+/**
+ * One of the two units of an attack: the ground it stood on with what it had
+ * round it, each facing outwards; under that its name and flag, and what it
+ * had with its experience. What it lost is marked, and shown as lost once the
+ * dialog is "struck". `role` is "attacker" or "target": the word over it, and
+ * the colour of its field on the map.
+ */
+function fighterPanel(fighter: Fighter, role: 'attacker' | 'target'): HTMLElement {
+  const panel = document.createElement('section');
+  panel.className = `fighter ${role}`;
+  const ring = document.createElement('div');
+  ring.className = 'ring';
+  const ground = tileCanvas(fighter.terrain);
+  ground.className = 'ground';
+  ring.append(ground);
+  for (let at = 0; at < fighter.before; at++) {
+    const [x, y] = RING[at % RING.length]!;
+    const one = unitCanvas(fighter.type, fighter.side, at % RING.length);
+    // The last ones are the ones lost.
+    one.className = at >= fighter.before - fighter.losses ? 'one falls' : 'one';
+    one.style.left = `${(0.5 + x) * 100}%`;
+    one.style.top = `${(0.5 + y) * 100}%`;
+    ring.append(one);
+  }
+
+  const name = document.createElement('div');
+  name.className = 'fighter-name';
+  name.append(textElement('span', '', unitName(fighter.type)));
+  const flag = sideFlag(fighter.side);
+  if (flag) name.append(flag);
+  const left = fighter.before - fighter.losses;
+  const count = document.createElement('div');
+  count.className = 'fighter-count';
+  // Its experience as it went into the attack, and, where the attack gave it more, as it came out.
+  const was = experienceMarks(fighter.experience - fighter.gained);
+  count.append(textElement('span', 'had', String(fighter.before)), was);
+  if (fighter.gained > 0) {
+    was.classList.add('was');
+    const now = experienceMarks(fighter.experience);
+    now.classList.add('now');
+    count.append(now);
+  }
+  count.append(
+    textElement('span', 'has', left <= 0 ? 'destroyed' : fighter.losses === 0 ? 'no losses' : `−${fighter.losses}, ${left} left`),
+  );
+  const label = document.createElement('div');
+  label.className = 'label';
+  label.append(textElement('span', 'swatch', ''), `${role} · ${sideName(fighter.side)}`);
+  panel.append(label, ring, name, count);
+  return panel;
+}
+
+/** Fills the dialog with the attack on show: the attacker beside its target, and what goes on to the next attack. */
+function renderFight(): void {
+  const mark = fightMarks[fightAt];
+  if (!mark) return;
+  const title = textElement('h2', '', `Attack ${fightAt + 1} of ${fightMarks.length}`);
+  title.id = 'fight-title';
+  const head = document.createElement('header');
+  head.append(title, panelButton(fightMarks.length - fightAt > 1 ? 'Skip the rest' : 'Close', endFights));
+
+  const sides = document.createElement('div');
+  sides.className = 'fight-sides';
+  sides.append(fighterPanel(mark.attacker, 'attacker'));
+  if (mark.target) {
+    sides.append(textElement('div', 'fight-versus', '▸'), fighterPanel(mark.target, 'target'));
+  } else {
+    sides.append(textElement('p', 'fight-missed sub', `Nothing it could attack was on field ${mark.to.column}, ${mark.to.row} any more.`));
+  }
+
+  const notes = [
+    mark.flank ? `attack +${mark.flank}% from units around the target` : '',
+    mark.support ? `armour +${mark.support}% from units beside it` : '',
+    mark.lostAboard.length ? `lost aboard: ${mark.lostAboard.join(', ')}` : '',
+  ].filter(Boolean);
+
+  const next = panelButton(fightAt + 1 < fightMarks.length ? 'Next' : 'Done', stepFight);
+  next.className = 'fight-next';
+  const auto = document.createElement('label');
+  auto.className = 'check';
+  const box = document.createElement('input');
+  box.type = 'checkbox';
+  box.checked = fightsAuto;
+  box.addEventListener('change', () => {
+    fightsAuto = box.checked;
+    try {
+      localStorage.setItem(FIGHTS_AUTO_KEY, fightsAuto ? '1' : '0');
+    } catch {
+      // No storage: it holds for this battle.
+    }
+    // An attack still to show its losses does that first; one that has is now gone on from, or waited at.
+    if (mark.target && !fightStruck) return;
+    window.clearTimeout(fightTimer);
+    fightTimer = fightsAuto ? window.setTimeout(() => showFight(fightAt + 1), FIGHT_AFTER) : undefined;
+  });
+  auto.append(box, ' Auto');
+  auto.title = 'Go on to the next attack without waiting for "Next"';
+  const foot = document.createElement('footer');
+  foot.append(textElement('span', 'sub fight-notes', notes.join(' · ')), auto, next);
+
+  fightBody.className = fightStruck ? 'fight-body struck' : 'fight-body';
+  fightBody.replaceChildren(head, sides, foot);
+  // Not as a modal dialog: the map beside it can still be scrolled, and a click on it ends the show.
+  if (!fightDialog.open) fightDialog.show();
+  // Enter and the space bar then go on.
+  next.focus({ preventScroll: true });
+}
+
+type Dock = 'bottom' | 'top' | 'right' | 'left';
+/** The edge of the map's view the dialog was last put at; it stays there for as long as the attacks have room beside it. */
+let fightDock: Dock = 'bottom';
+
+/**
+ * Puts the dialog where it does not cover the attack on show, and scrolls
+ * the map, if it must, to bring the attack's fields into what is left of
+ * the view. It tries the edge the dialog is at, then the others, and takes
+ * the first that leaves the fields clear; if none does, the one that covers
+ * least.
+ */
+function placeFight(fields: Field[]): void {
+  const stage = mapCanvas.closest<HTMLElement>('.stage');
+  if (!stage) return;
+  const view = stage.getBoundingClientRect();
+  const [wide, high] = [stage.clientWidth, stage.clientHeight];
+  const size = fightDialog.getBoundingClientRect();
+  const canvasBox = mapCanvas.getBoundingClientRect();
+  const scale = canvasBox.width / mapCanvas.width;
+  // The fields, with something over half a field round each, in the stage's own scrolled space.
+  const room = TILE_SIZE * scale * 0.7;
+  const xs = fields.map((field) => canvasBox.left - view.left + stage.scrollLeft + fieldCentre(field).x * scale);
+  const ys = fields.map((field) => canvasBox.top - view.top + stage.scrollTop + fieldCentre(field).y * scale);
+  const box = { left: Math.min(...xs) - room, right: Math.max(...xs) + room, top: Math.min(...ys) - room, bottom: Math.max(...ys) + room };
+  const most = { left: Math.max(0, stage.scrollWidth - wide), top: Math.max(0, stage.scrollHeight - high) };
+  const within = (value: number, least: number, greatest: number) => Math.max(least, Math.min(greatest, value));
+  const gap = 12;
+
+  let best: { dock: Dock; left: number; top: number; scrollLeft: number; scrollTop: number; spill: number } | null = null;
+  const docks: Dock[] = [fightDock, ...(['bottom', 'top', 'right', 'left'] as const).filter((dock) => dock !== fightDock)];
+  for (const dock of docks) {
+    // Where the dialog would be, within the stage's view.
+    const left = dock === 'left' ? gap : dock === 'right' ? wide - size.width - gap : (wide - size.width) / 2;
+    const top = dock === 'top' ? gap : dock === 'bottom' ? high - size.height - gap : (high - size.height) / 2;
+    // What it leaves of the view.
+    const free = {
+      left: dock === 'left' ? left + size.width + gap : 0,
+      right: dock === 'right' ? left - gap : wide,
+      top: dock === 'top' ? top + size.height + gap : 0,
+      bottom: dock === 'bottom' ? top - gap : high,
+    };
+    // How much of the attack's fields would lie outside that, with the map scrolled to a place.
+    const spillAt = (scrollLeft: number, scrollTop: number) =>
+      Math.max(0, free.left - (box.left - scrollLeft)) +
+      Math.max(0, box.right - scrollLeft - free.right) +
+      Math.max(0, free.top - (box.top - scrollTop)) +
+      Math.max(0, box.bottom - scrollTop - free.bottom);
+    // The map is left where it is if that will do; else the fields go to the middle of what is free.
+    let [scrollLeft, scrollTop] = [stage.scrollLeft, stage.scrollTop];
+    if (spillAt(scrollLeft, scrollTop) > 0) {
+      scrollLeft = within((box.left + box.right) / 2 - (free.left + free.right) / 2, 0, most.left);
+      scrollTop = within((box.top + box.bottom) / 2 - (free.top + free.bottom) / 2, 0, most.top);
+    }
+    const spill = spillAt(scrollLeft, scrollTop);
+    if (!best || spill < best.spill) best = { dock, left, top, scrollLeft, scrollTop, spill };
+    if (spill === 0) break;
+  }
+  if (!best) return;
+  fightDock = best.dock;
+  fightDialog.style.left = `${Math.round(view.left + Math.max(0, best.left))}px`;
+  fightDialog.style.top = `${Math.round(view.top + Math.max(0, best.top))}px`;
+  if (best.scrollLeft !== stage.scrollLeft || best.scrollTop !== stage.scrollTop) {
+    stage.scrollTo({
+      left: best.scrollLeft,
+      top: best.scrollTop,
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+    });
+  }
+}
+
+/** Shows one attack of the turn that has just ended, and after a moment what it cost each unit. */
+function showFight(at: number): void {
+  const mark = fightMarks[at];
+  if (!mark) {
+    endFights();
+    return;
+  }
+  window.clearTimeout(fightTimer);
+  fightsPlaying = true;
+  fightAt = at;
+  fightStruck = false;
+  // The map shows the attacks so far, this one standing out.
+  fightsShown = at + 1;
+  drawOverlay();
+  renderFight();
+  placeFight([mark.from, mark.to]);
+  // A moment to see who fights whom, then the losses; an attack that hit nothing has none to wait for.
+  if (mark.target) fightTimer = window.setTimeout(strikeFight, FIGHT_BEFORE);
+  else fightTimer = fightsAuto ? window.setTimeout(() => showFight(at + 1), FIGHT_MISSED) : undefined;
+}
+
+/** Shows what the attack on show cost: the lost fall dark, the numbers come up. Then it waits for "Next", or goes on by itself. */
+function strikeFight(): void {
+  window.clearTimeout(fightTimer);
+  fightStruck = true;
+  fightBody.classList.add('struck');
+  fightTimer = fightsAuto ? window.setTimeout(() => showFight(fightAt + 1), FIGHT_AFTER) : undefined;
+}
+
+/** The "Next" button: hurries the attack on show to its losses, or goes on to the next attack. */
+function stepFight(): void {
+  if (fightMarks[fightAt]?.target && !fightStruck) strikeFight();
+  else showFight(fightAt + 1);
+}
+
+/** Ends the show. The dialog goes, and the map shows all the turn's attacks until the next click. */
+function endFights(): void {
+  window.clearTimeout(fightTimer);
+  fightTimer = undefined;
+  fightsPlaying = false;
+  if (fightDialog.open) fightDialog.close();
+  fightsShown = fightMarks.length;
+  const then = afterFights;
+  afterFights = null;
+  // What was waiting brings the screen in line itself.
+  if (then) {
+    then();
+    return;
+  }
+  drawOverlay();
+  renderDetails();
+}
+
+/** Shows the turn's attacks one after another, from the first. */
 function playFights(): void {
   window.clearTimeout(fightTimer);
   fightTimer = undefined;
   fightsShown = 0;
   if (fightMarks.length === 0) return;
-  const step = Math.max(FIGHT_STEP_SHORTEST, Math.min(FIGHT_STEP_LONGEST, FIGHTS_PLAY_TIME / fightMarks.length));
-  const next = () => {
-    fightsShown++;
-    fightTimer = fightsShown < fightMarks.length ? window.setTimeout(next, step) : undefined;
-    drawOverlay();
-  };
-  next();
+  showFight(0);
 }
 
-/** Takes the attacks off the map; they can be played again from the side panel. */
+/** Takes the attacks off the map, and their dialog away if they are being shown; they can be played again from the side panel. */
 function hideFights(): void {
   window.clearTimeout(fightTimer);
   fightTimer = undefined;
-  if (fightsShown === 0) return;
+  const playing = fightsPlaying;
+  fightsPlaying = false;
+  if (fightDialog.open) fightDialog.close();
+  // The game the attacks were of is being left: nothing waits for their end any more.
+  afterFights = null;
+  if (fightsShown === 0 && !playing) return;
   fightsShown = 0;
   drawOverlay();
 }
@@ -344,7 +670,7 @@ function drawFights(context: CanvasRenderingContext2D, stampOn: (stamp: HTMLCanv
   const shown = fightMarks.slice(0, fightsShown);
   if (shown.length === 0) return;
   // While they are still coming up, the newest stands out.
-  const newest = fightTimer !== undefined ? shown[shown.length - 1] : undefined;
+  const newest = fightsPlaying ? shown[shown.length - 1] : undefined;
   if (newest) {
     stampOn(stamps.selected, newest.from);
     stampOn(stamps.target, newest.to);
@@ -1452,7 +1778,7 @@ function renderDetails(): void {
     details.append(
       heading(`Attacks when the last turn ended (${fights.length})`),
       textElement('p', 'sub', 'On the map: a white line for each attack (dashed if it hit nothing), what each unit lost, and a cross on those destroyed. A click on the map clears them.'),
-      panelButton('Show them on the map again', playFights),
+      panelButton('Show them again', playFights),
       itemList(fights.map(describeFight)),
     );
   }
@@ -1706,6 +2032,11 @@ function pickLeaving(unit: Unit | null): void {
  */
 function onFieldClick(field: Field | null): void {
   if (!game) return;
+  // A click on the map while the attacks are shown ends the show, and does no more.
+  if (fightsPlaying) {
+    endFights();
+    return;
+  }
   notice = null;
   hideFights();
   // The computer's units are looked at, not given orders.
@@ -1820,6 +2151,11 @@ mapCanvas.addEventListener('click', (event) => onFieldClick(fieldUnderPointer(ev
 document.addEventListener('keydown', (event) => {
   // In the dialog Esc closes it, which the browser does itself.
   if (event.key !== 'Escape' || insideDialog.open) return;
+  // Esc ends the show of the attacks as "Skip the rest" does.
+  if (fightsPlaying) {
+    endFights();
+    return;
+  }
   hideFights();
   if (leaving) pickLeaving(null);
   else if (selected) setSelected(null);
@@ -1831,16 +2167,13 @@ insideDialog.addEventListener('close', () => {
 insideDialog.addEventListener('click', (event) => {
   if (event.target === insideDialog) closeInside();
 });
-endTurnButton.addEventListener('click', () => {
-  if (!game) return;
-  lastReport = endHalf(game);
-  strengths.push(strengthsNow());
-  selected = null;
-  leaving = null;
-  // Before the computer moves anything: the attackers still stand where they fought.
-  markFights(lastReport.fights);
-  computerTurns = [];
-  runComputer();
+/**
+ * What the half that has just ended did, and who does what now. With the
+ * computer's part of the new half played, also what it moved.
+ */
+function turnNotice(): string {
+  if (!game || !lastReport) return '';
+  if (game.winner !== null) return `${OWNERS[game.winner]} side has won.`;
   const computerMoved = computerTurns.reduce((sum, turn) => sum + turn.moves.length, 0);
   const { fights, captures, works, paid } = lastReport;
   const built = works.filter((work) => work.done && work.work === 'build').length;
@@ -1848,12 +2181,40 @@ endTurnButton.addEventListener('click', () => {
     (captures.length ? `${captures.length} ${captures.length === 1 ? 'building' : 'buildings'} taken. ` : '') +
     (built ? `${built} ${built === 1 ? 'depot' : 'depots'} built. ` : '') +
     (paid.points ? `${OWNERS[paid.side]} side paid ${paid.points} points. ` : '');
-  notice =
-    game.winner !== null
-      ? `${OWNERS[game.winner]} side has won.`
-      : `${fights.length} ${fights.length === 1 ? 'attack' : 'attacks'} carried out. ${taken}` +
-        `Now ${OWNERS[game.mover]} moves and ${OWNERS[attackerSide(game)]} attacks.` +
-        (computerMoved ? ` The computer has moved ${computerMoved} ${computerMoved === 1 ? 'unit' : 'units'}.` : '');
+  return (
+    `${fights.length} ${fights.length === 1 ? 'attack' : 'attacks'} carried out. ${taken}` +
+    `Now ${OWNERS[game.mover]} moves and ${OWNERS[attackerSide(game)]} attacks.` +
+    (computerMoved ? ` The computer has moved ${computerMoved} ${computerMoved === 1 ? 'unit' : 'units'}.` : '')
+  );
+}
+
+/** Has the computer play its part of the half that has begun, and shows where things stand. */
+function beginHalf(): void {
+  runComputer();
+  notice = turnNotice();
+  refresh();
+}
+
+endTurnButton.addEventListener('click', () => {
+  if (!game) return;
+  // While the attacks of the turn before are still being shown, the button only ends their show.
+  if (fightsPlaying) {
+    endFights();
+    return;
+  }
+  lastReport = endHalf(game);
+  strengths.push(strengthsNow());
+  selected = null;
+  leaving = null;
+  markFights(lastReport.fights);
+  computerTurns = [];
+  if (fightMarks.length === 0) {
+    beginHalf();
+    return;
+  }
+  // The computer waits until the attacks have been shown: until then the units stand where they fought.
+  afterFights = beginHalf;
+  notice = turnNotice();
   refresh();
   playFights();
 });

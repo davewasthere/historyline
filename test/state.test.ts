@@ -200,6 +200,10 @@ test('attacks are carried out when the half ends, and both units learn from them
   assert.deepEqual([report!.targetLeft, report!.attackerLeft], [5, 5]);
   assert.deepEqual([german!.count, french!.count], [5, 5]);
   assert.deepEqual([german!.experience, french!.experience], [1, 1]);
+  assert.deepEqual(
+    [report!.attackerExperience, report!.attackerGained, report!.targetExperience, report!.targetGained],
+    [1, 1, 1, 1],
+  );
   assert.deepEqual(state.orders, []);
 });
 

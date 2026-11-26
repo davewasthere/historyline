@@ -681,6 +681,262 @@ canvas {
   font-variant-numeric: tabular-nums;
 }
 
+/* --- the last turn's attacks, one at a time ----------------------------------- */
+
+/*
+ * Not a modal dialog: it floats over the map's view at whichever edge keeps
+ * it off the attack it shows, where the page's script puts it.
+ */
+.fight {
+  position: fixed;
+  z-index: 5;
+  inset: 0 auto auto 0;
+  width: min(31rem, calc(100vw - 2rem));
+  margin: 0;
+  padding: 0;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 10px 34px rgb(0 0 0 / 0.4);
+}
+
+.fight-body {
+  padding: 0.8rem 1rem 0.9rem;
+}
+
+.fight header,
+.fight footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.fight h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.fight button {
+  font: inherit;
+  font-size: 0.85rem;
+  color: inherit;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.15rem 0.7rem;
+  cursor: pointer;
+}
+
+.fight button:hover {
+  background: var(--hover);
+}
+
+.fight button.fight-next {
+  flex: none;
+  padding: 0.3rem 1.3rem;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.fight button.fight-next:hover {
+  background: var(--accent);
+  filter: brightness(1.1);
+}
+
+.fight .sub {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.fight footer {
+  min-height: 2.2rem;
+  margin-top: 0.6rem;
+}
+
+.fight footer .fight-notes {
+  flex: 1;
+  min-width: 0;
+}
+
+.fight footer .check {
+  flex: none;
+  cursor: pointer;
+}
+
+.fight-sides {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+
+.fight-versus {
+  font-size: 1.4rem;
+  color: var(--muted);
+}
+
+.fight-missed {
+  grid-column: 2 / 4;
+  margin: 0;
+}
+
+.fighter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  padding: 0.5rem 0.5rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.fighter .label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* The colour the unit's field has on the map while its attack is shown. */
+.fighter .swatch {
+  display: inline-block;
+  width: 0.6rem;
+  height: 0.6rem;
+  margin-right: 0.35rem;
+  border-radius: 2px;
+  background: rgb(255 214 64);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.25);
+}
+
+.fighter.target .swatch {
+  background: rgb(255 48 32);
+}
+
+/* The unit's ground with what it has standing round it, on the colour of the map's surround. */
+.ring {
+  position: relative;
+  width: 100%;
+  max-width: 11rem;
+  aspect-ratio: 1;
+  margin: 0.4rem 0;
+  border-radius: 50%;
+  background: var(--stage);
+}
+
+.ring canvas {
+  position: absolute;
+  transform: translate(-50%, -50%);
+}
+
+.ring .ground {
+  left: 50%;
+  top: 50%;
+  width: 34%;
+  height: 34%;
+}
+
+.ring .one {
+  width: 26%;
+  height: 26%;
+  transition:
+    opacity 600ms ease,
+    filter 600ms ease,
+    transform 600ms ease;
+}
+
+/* What the attack cost: dark, grey and a little smaller. */
+.struck .ring .falls {
+  opacity: 0.22;
+  filter: grayscale(1) brightness(0.5);
+  transform: translate(-50%, -50%) scale(0.8);
+}
+
+.fighter-name {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.fighter-name .flag {
+  flex: none;
+  width: 24px;
+  height: 17px;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.fighter-count {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 32px;
+  margin-top: 0.15rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.fighter-count .had {
+  font-size: 1.3rem;
+  font-weight: 650;
+}
+
+/* Its experience: as it went in, and once the losses are shown, as it came out. */
+.fighter-count .rank {
+  width: 30px;
+  height: 30px;
+}
+
+.fighter-count .rank.now,
+.struck .fighter-count .rank.was {
+  display: none;
+}
+
+.struck .fighter-count .rank.now {
+  display: inline-flex;
+  animation: rank-gained 500ms ease-out;
+}
+
+@keyframes rank-gained {
+  from {
+    transform: scale(1.7);
+    opacity: 0.2;
+  }
+}
+
+/* What it has left comes up with the losses. */
+.fighter-count .has {
+  color: var(--muted);
+  opacity: 0;
+  transition: opacity 400ms ease 200ms;
+}
+
+.struck .fighter-count .has {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ring .one,
+  .fighter-count .has {
+    transition: none;
+  }
+
+  .struck .fighter-count .rank.now {
+    animation: none;
+  }
+}
+
 /* The dialog that shows the inside of a transport or building. */
 .inside {
   width: min(46rem, calc(100vw - 2rem));

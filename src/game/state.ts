@@ -765,6 +765,11 @@ export interface FightReport {
   /** What each unit had left right after this fight; 0 means it was destroyed. */
   attackerLeft: number;
   targetLeft: number;
+  /** Each unit's experience right after this fight, and how much of it this fight gave. */
+  attackerExperience: number;
+  targetExperience: number;
+  attackerGained: number;
+  targetGained: number;
   /** Per cent added to the attack by the attacker's side around the target. */
   flank: number;
   /** Per cent added to the target's armour by its side beside both fighters. */
@@ -839,6 +844,10 @@ function fight(state: GameState, order: AttackOrder): FightReport {
     targetLosses: 0,
     attackerLeft: attacker.count,
     targetLeft: 0,
+    attackerExperience: attacker.experience,
+    targetExperience: 0,
+    attackerGained: 0,
+    targetGained: 0,
     flank: 0,
     support: 0,
     cargoDestroyed: [],
@@ -874,6 +883,8 @@ function fight(state: GameState, order: AttackOrder): FightReport {
     removeUnit(state, attacker);
     targetGain++;
   }
+  // What a unit gains may be less than its points: experience has an end.
+  const had = [attacker.experience, target.experience] as const;
   gainExperience(attacker, attackerGain);
   gainExperience(target, targetGain);
   return {
@@ -883,6 +894,10 @@ function fight(state: GameState, order: AttackOrder): FightReport {
     targetLosses: result.targetLosses,
     attackerLeft: attacker.count,
     targetLeft: target.count,
+    attackerExperience: attacker.experience,
+    targetExperience: target.experience,
+    attackerGained: attacker.experience - had[0],
+    targetGained: target.experience - had[1],
     flank,
     support,
     cargoDestroyed,
