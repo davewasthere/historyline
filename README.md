@@ -81,7 +81,10 @@ It has three pages, one after the other:
 - **The battle**, as described under [Playing](#playing). "‹ Maps" in its
   toolbar leads back to the list, where the battle left can be continued.
   Who plays, the season and the colours are not changed during a battle: its
-  toolbar has only whether units are shown, the zoom, and the turn. Of the
+  toolbar has only whether units are shown, the zoom, and the turn. The side
+  panel is as wide as it is dragged by the edge between it and the map (or
+  moved with the arrow keys, the edge having the keyboard); a double click
+  there gives it its usual width back. The browser remembers the width. Of the
   map its side panel says only what changes: each side's units, its points
   and what it earns a round, and its strength: the vehicles, guns and squads
   all its units have left. A small graph under them draws both sides'

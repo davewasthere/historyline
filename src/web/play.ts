@@ -107,6 +107,7 @@ const canvasWrap = element<HTMLDivElement>('canvas-wrap');
 const backLink = element<HTMLAnchorElement>('back');
 const battleTitle = element<HTMLHeadingElement>('battle-title');
 const details = element<HTMLElement>('details');
+const resizer = element<HTMLDivElement>('resizer');
 const fieldInfo = element<HTMLOutputElement>('field-info');
 const message = element<HTMLParagraphElement>('message');
 const zoomSelect = element<HTMLSelectElement>('zoom');
@@ -2222,6 +2223,64 @@ restartButton.addEventListener('click', () => {
   startGame();
   refresh();
 });
+// --- the side panel's width ----------------------------------------------------
+
+/** The side panel's width is the viewer's own to set; the browser remembers it. */
+const PANEL_WIDTH_KEY = 'historyline.prefs.panelWidth';
+/** The narrowest the panel gets, the least it leaves the map, and what an arrow key changes it by, in pixels. */
+const PANEL_NARROWEST = 240;
+const MAP_NARROWEST = 240;
+const PANEL_STEP = 24;
+
+/** Sets the side panel's width, within what the window has room for; null gives it its usual width back. */
+function setPanelWidth(width: number | null, remember: boolean): void {
+  if (width === null) {
+    document.body.style.removeProperty('--panel-width');
+  } else {
+    const widest = Math.max(PANEL_NARROWEST, window.innerWidth - MAP_NARROWEST);
+    document.body.style.setProperty('--panel-width', `${Math.round(Math.max(PANEL_NARROWEST, Math.min(widest, width)))}px`);
+  }
+  if (!remember) return;
+  try {
+    if (width === null) localStorage.removeItem(PANEL_WIDTH_KEY);
+    else localStorage.setItem(PANEL_WIDTH_KEY, String(Math.round(details.getBoundingClientRect().width)));
+  } catch {
+    // No storage: the width holds until the page is left.
+  }
+}
+
+try {
+  const kept = Number(localStorage.getItem(PANEL_WIDTH_KEY));
+  if (Number.isFinite(kept) && kept > 0) setPanelWidth(kept, false);
+} catch {
+  // No storage: the panel has its usual width.
+}
+
+resizer.addEventListener('pointerdown', (event) => {
+  if (event.button !== 0) return;
+  event.preventDefault();
+  resizer.setPointerCapture(event.pointerId);
+  resizer.classList.add('dragging');
+  // The panel's left edge follows the pointer, wherever on the handle it took hold.
+  const hold = event.clientX - details.getBoundingClientRect().left;
+  const drag = (move: PointerEvent) => setPanelWidth(window.innerWidth - (move.clientX - hold), false);
+  const drop = () => {
+    resizer.removeEventListener('pointermove', drag);
+    resizer.classList.remove('dragging');
+    setPanelWidth(details.getBoundingClientRect().width, true);
+  };
+  resizer.addEventListener('pointermove', drag);
+  resizer.addEventListener('pointerup', drop, { once: true });
+  resizer.addEventListener('pointercancel', drop, { once: true });
+});
+resizer.addEventListener('dblclick', () => setPanelWidth(null, true));
+resizer.addEventListener('keydown', (event) => {
+  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+  event.preventDefault();
+  // The panel is on the right: the left arrow moves its edge left, which widens it.
+  setPanelWidth(details.getBoundingClientRect().width + (event.key === 'ArrowLeft' ? PANEL_STEP : -PANEL_STEP), true);
+});
+
 saveButton.addEventListener('click', saveBattle);
 loadButton.addEventListener('click', loadBattle);
 for (const control of [unitsCheckbox, zoomSelect]) {

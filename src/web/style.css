@@ -1207,7 +1207,31 @@ canvas {
 
 /* The battle screen has no list of maps: the map gets its room. */
 body.play {
-  grid-template: 'toolbar toolbar' auto 'stage details' minmax(0, 1fr) / minmax(0, 1fr) 19rem;
+  grid-template:
+    'toolbar toolbar toolbar' auto
+    'stage resizer details' minmax(0, 1fr)
+    / minmax(0, 1fr) 7px var(--panel-width, 19rem);
+}
+
+/* The handle between the map and the side panel: dragged, it sets the panel's width. */
+.resizer {
+  grid-area: resizer;
+  border-left: 1px solid var(--line);
+  background: var(--panel);
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.resizer:hover,
+.resizer:focus-visible,
+.resizer.dragging {
+  background: var(--accent);
+  border-color: var(--accent);
+  outline: none;
+}
+
+body.play .details {
+  border-left: 0;
 }
 
 /* The screen the games are picked on. */
