@@ -259,7 +259,8 @@ body.play .details {
   background: var(--panel);
 }
 
-.details .turn-box #end-turn {
+.details .turn-box #end-turn,
+.details .turn-box button.primary {
   padding: 0.45rem 0.8rem;
   background: var(--accent);
   border-color: var(--accent);
@@ -268,7 +269,8 @@ body.play .details {
   font-weight: 600;
 }
 
-.details .turn-box #end-turn:hover {
+.details .turn-box #end-turn:hover,
+.details .turn-box button.primary:hover {
   background: var(--accent);
   filter: brightness(1.1);
 }
@@ -282,6 +284,13 @@ body.play .details {
 
 .turn-row button {
   flex: 1;
+}
+
+/* "Play again", beside "Save" and "Load": their size, in the colours of the button that matters. */
+.details .turn-box .turn-row button.primary {
+  padding: 0.25rem 0.7rem;
+  font-size: 0.9rem;
+  white-space: nowrap;
 }
 
 .field-info {
@@ -1046,6 +1055,151 @@ canvas {
   }
 
   .struck .fighter-count .rank.now {
+    animation: none;
+  }
+}
+
+/* --- how the battle ended ------------------------------------------------------ */
+
+.won {
+  width: min(30rem, calc(100vw - 2rem));
+  padding: 0;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 16px 48px rgb(0 0 0 / 0.45);
+}
+
+.won[open] {
+  animation: won-in 320ms ease-out;
+}
+
+@keyframes won-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+}
+
+.won::backdrop {
+  background: rgb(0 0 0 / 0.45);
+}
+
+.won-body {
+  padding: 1.4rem 1.5rem 1.3rem;
+}
+
+.won header {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.won h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 1.7rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.won .victory h2 {
+  color: var(--accent);
+}
+
+.won-star {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  fill: var(--gold);
+  stroke: var(--gold-edge);
+  stroke-width: 0.7;
+  stroke-linejoin: round;
+  animation: won-star 600ms ease-out 150ms backwards;
+}
+
+@keyframes won-star {
+  from {
+    opacity: 0;
+    transform: scale(0.3) rotate(-40deg);
+  }
+}
+
+.won header .flag {
+  flex: none;
+  width: 48px;
+  height: 34px;
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.won-said {
+  margin: 0.7rem 0 1rem;
+  font-size: 1.05rem;
+}
+
+.won dl.sides {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 0.75rem;
+  margin: 0;
+}
+
+.won dl.sides dt {
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.won dl.sides dd {
+  margin: 0;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.won .graph-readout .sub {
+  color: var(--muted);
+}
+
+.won footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.won button,
+.won a.button {
+  font: inherit;
+  color: inherit;
+  text-decoration: none;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.4rem 0.9rem;
+  cursor: pointer;
+}
+
+.won button:hover,
+.won a.button:hover {
+  background: var(--hover);
+}
+
+.won button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.won button.primary:hover {
+  background: var(--accent);
+  filter: brightness(1.1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .won[open],
+  .won-star {
     animation: none;
   }
 }

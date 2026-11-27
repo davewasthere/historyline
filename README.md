@@ -176,6 +176,13 @@ which is which.
   unit lost, and a red cross on a unit destroyed. They stay until the next
   click on the map or Esc; "Show them again" in the side panel replays the
   attacks.
+- When a battle is won, a dialog says how it ended: "Victory!" or "Defeat" to
+  one who played a side against the computer, else which side won; how (the
+  headquarters taken, or no units left); what each side has left of what it
+  began with; and the graph of their strength. From it the battle can be
+  played again, the maps gone back to, or the map looked at. The side panel
+  then has no "End turn", "Play again" in place of "Restart", and "How it
+  ended" to bring the dialog back.
 - "Restart" puts the map back as the game's files have it.
 - The battle in progress on each map is kept as it goes, without being
   asked: after a reload, or a look at another map, it is taken up where it

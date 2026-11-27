@@ -124,6 +124,8 @@ const insideDialog = element<HTMLDialogElement>('inside');
 const insideBody = element<HTMLDivElement>('inside-body');
 const fightDialog = element<HTMLDialogElement>('fight');
 const fightBody = element<HTMLDivElement>('fight-body');
+const wonDialog = element<HTMLDialogElement>('won');
+const wonBody = element<HTMLDivElement>('won-body');
 
 const FIELD_INFO_IDLE = fieldInfo.textContent;
 
@@ -1192,6 +1194,11 @@ function renderTurn(): void {
   loadButton.disabled = !battle;
   saveButton.title = battle ? 'Replaces the battle saved for this map' : 'Keeps this battle in the browser';
   loadButton.title = battle ? `Back to the battle ${describeSave(battle)}` : 'No battle is saved for this map';
+  // A battle that is over has no turn to end: what is left is to begin it again.
+  const over = game !== null && game.winner !== null;
+  endTurnButton.hidden = over;
+  restartButton.textContent = over ? 'Play again' : 'Restart';
+  restartButton.classList.toggle('primary', over);
   turnStatus.replaceChildren();
   if (!game) return;
   turnStatus.append(textElement('div', 'turn-round', `Round ${game.round}`));
@@ -1203,6 +1210,7 @@ function renderTurn(): void {
         `${OWNERS[game.winner]} side has won: ` +
           (game.wonBy === 'headquarters' ? 'it took the enemy headquarters.' : 'no enemy units are left.'),
       ),
+      panelButton('How it ended', showWon),
     );
     return;
   }
@@ -2263,7 +2271,7 @@ mapCanvas.addEventListener('pointerleave', () => {
 mapCanvas.addEventListener('click', (event) => onFieldClick(fieldUnderPointer(event)));
 document.addEventListener('keydown', (event) => {
   // In the dialog Esc closes it, which the browser does itself.
-  if (event.key !== 'Escape' || insideDialog.open) return;
+  if (event.key !== 'Escape' || insideDialog.open || wonDialog.open) return;
   // Esc ends the show of the attacks as "Skip the rest" does.
   if (fightsPlaying) {
     endFights();
@@ -2301,11 +2309,89 @@ function turnNotice(): string {
   );
 }
 
-/** Has the computer play its part of the half that has begun, and shows where things stand. */
+/**
+ * Says how the battle ended, in a dialog: who won and how, to the one at the
+ * screen as a victory or a defeat if they played one side against the
+ * computer; what each side has left and how its strength went; and the ways
+ * on from there.
+ */
+function showWon(): void {
+  if (!game || game.winner === null) return;
+  const winner = game.winner;
+  const loser: Side = winner === 0 ? 1 : 0;
+  const players = ([0, 1] as const).filter((one) => !computerPlays(one));
+  const outcome = players.length !== 1 ? 'over' : players[0] === winner ? 'victory' : 'defeat';
+
+  const title = textElement(
+    'h2',
+    '',
+    outcome === 'victory' ? 'Victory!' : outcome === 'defeat' ? 'Defeat' : `${OWNERS[winner]} side has won`,
+  );
+  title.id = 'won-title';
+  const head = document.createElement('header');
+  // A star for the one who won it themselves.
+  if (outcome === 'victory') {
+    const star = document.createElementNS(SVG, 'svg');
+    star.setAttribute('viewBox', '-1 -1 26 26');
+    star.setAttribute('class', 'won-star');
+    star.setAttribute('aria-hidden', 'true');
+    const drawn = document.createElementNS(SVG, 'path');
+    drawn.setAttribute('d', LARGE_STAR);
+    star.append(drawn);
+    head.append(star);
+  }
+  head.append(title);
+  const flag = sideFlag(winner);
+  if (flag) head.append(flag);
+
+  const how =
+    game.wonBy === 'headquarters' ? `it took the ${OWNERS[loser]} headquarters` : `no ${OWNERS[loser]} units are left`;
+  const said = textElement(
+    'p',
+    'won-said',
+    (outcome === 'victory' ? 'Well done. ' : outcome === 'defeat' ? 'The battle is lost. ' : '') +
+      `The ${OWNERS[winner]} side has won in round ${game.round}: ${how}.`,
+  );
+
+  // What each side has left of what it began with.
+  const now = strengthsNow();
+  const first = strengths[0] ?? now;
+  const sides = document.createElement('dl');
+  sides.className = 'sides';
+  for (const one of [0, 1] as const) {
+    const units = game.units.filter((unit) => unit.side === one && !unit.destroyed).length;
+    const name = document.createElement('dt');
+    name.append(textElement('span', `key series-${one + 1}`, ''), OWNERS[one]);
+    const numbers = document.createElement('dd');
+    numbers.textContent = `${units} ${units === 1 ? 'unit' : 'units'} left, strength ${now[one]} of ${first[one]} · ${game.points[one]} points`;
+    sides.append(name, numbers);
+  }
+
+  const again = panelButton('Play again', () => {
+    wonDialog.close();
+    startGame();
+    refresh();
+  });
+  again.className = 'primary';
+  const back = document.createElement('a');
+  back.className = 'button';
+  back.href = mapsPage(gameId, state.mapId);
+  back.textContent = 'Back to the maps';
+  const foot = document.createElement('footer');
+  foot.append(again, back, panelButton('Look at the map', () => wonDialog.close()));
+
+  wonBody.className = `won-body ${outcome}`;
+  wonBody.replaceChildren(head, said, sides, strengthGraph([...strengths.slice(0, -1), now]), foot);
+  if (!wonDialog.open) wonDialog.showModal();
+  again.focus();
+}
+
+/** Has the computer play its part of the half that has begun, and shows where things stand: at the end, how it ended. */
 function beginHalf(): void {
   runComputer();
   notice = turnNotice();
   refresh();
+  if (game && game.winner !== null) showWon();
 }
 
 endTurnButton.addEventListener('click', () => {
