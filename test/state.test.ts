@@ -226,23 +226,48 @@ test('attacks are carried out when the half ends, and both units learn from them
   assert.deepEqual(state.orders, []);
 });
 
-test('an attack hits whatever enemy stands on the field by then, or nothing', () => {
+test('an attack strikes the unit it was ordered on though it moves away, and a unit that comes into range can be attacked', () => {
   const { state } = game(['ppppp'], [[1, 0, INFANTRY, 0], [2, 0, INFANTRY, 1], [3, 0, TANK, 0]]);
   const [german, french, tank] = state.units;
   assert.ok(orderAttack(state, french!, { column: 1, row: 0 }).ok);
-  // The German infantry steps away before the half ends.
+  // The German infantry steps away before the half ends: the attack came first.
   assert.ok(moveUnit(state, german!, { column: 0, row: 0 }).ok);
-  const [missed] = endHalf(state).fights;
-  assert.equal(missed!.target, null);
-  assert.deepEqual([german!.count, french!.count], [6, 6]);
+  const [hit] = endHalf(state).fights;
+  assert.equal(hit!.target, german);
+  assert.deepEqual(hit!.targetField, { column: 1, row: 0 });
+  assert.deepEqual([german!.count, french!.count], [5, 5]);
+  assert.deepEqual([german!.column, german!.row], [0, 0]);
 
-  // Next round: the same order, but this time the tank moves onto the field.
+  // Next round. The infantry comes back beside the French before they give their order: it can be attacked there,
   endHalf(state);
-  assert.ok(orderAttack(state, french!, { column: 3, row: 0 }).ok);
-  assert.ok(moveUnit(state, tank!, { column: 4, row: 0 }).ok);
   assert.ok(moveUnit(state, german!, { column: 1, row: 0 }).ok);
+  assert.deepEqual(
+    attackTargets(state, french!).map((field) => [field.column, field.row]),
+    [[1, 0], [3, 0]],
+  );
+  // and the field it left cannot.
+  assert.equal(orderAttack(state, french!, { column: 0, row: 0 }).ok, false);
+  assert.ok(orderAttack(state, french!, { column: 3, row: 0 }).ok);
+  // The tank moves off after the order. It is hit all the same, and nothing else in its place.
+  assert.ok(moveUnit(state, tank!, { column: 4, row: 0 }).ok);
+  const before = tank!.count;
   const [again] = endHalf(state).fights;
-  assert.equal(again!.target, null);
+  assert.equal(again!.target, tank);
+  assert.ok(tank!.count < before || again!.attackerLosses > 0);
+  assert.equal(german!.count, 5);
+});
+
+test('an attack on a unit that an earlier attack of the half destroyed hits nothing', () => {
+  const { state } = game(['ppp', 'ppp'], [[1, 0, INFANTRY, 0], [2, 0, INFANTRY, 1], [1, 1, INFANTRY, 1]]);
+  const [german, first, second] = state.units;
+  german!.count = 1;
+  first!.experience = 6;
+  assert.ok(orderAttack(state, first!, { column: 1, row: 0 }).ok);
+  assert.ok(orderAttack(state, second!, { column: 1, row: 0 }).ok);
+  const fights = endHalf(state).fights;
+  assert.equal(fights[0]!.target, german);
+  assert.ok(german!.destroyed);
+  assert.equal(fights[1]!.target, null);
 });
 
 test('a destroyed unit leaves the map, and a side with none left has lost', () => {

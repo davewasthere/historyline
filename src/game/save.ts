@@ -69,7 +69,8 @@ export interface SavedGame {
   wonBy: GameState['wonBy'];
   points: [number, number];
   buildable: number[];
-  orders: { attacker: number; target: Field }[];
+  /** `victim` is the unit the order was given on; missing in saves made when an attack hit whatever stood on its field. */
+  orders: { attacker: number; target: Field; victim?: number }[];
   works: { unit: number; target: Field; work: Work }[];
 }
 
@@ -116,7 +117,8 @@ export function saveGame(state: GameState): SavedGame {
     buildable: [...state.buildable],
     orders: state.orders.flatMap((order) => {
       const attacker = numberOf.get(order.attacker);
-      return attacker === undefined ? [] : [{ attacker, target: copy(order.target) }];
+      const victim = numberOf.get(order.victim);
+      return attacker === undefined || victim === undefined ? [] : [{ attacker, target: copy(order.target), victim }];
     }),
     works: state.works.flatMap((order) => {
       const unit = numberOf.get(order.unit);
@@ -235,7 +237,12 @@ export function restoreGame(
     buildingIndex,
     round: saved.round,
     mover: saved.mover,
-    orders: saved.orders.map((order) => ({ attacker: unitNumbered(order.attacker), target: copy(order.target) })),
+    orders: saved.orders.flatMap((order) => {
+      // An order saved without its unit was on whatever stood on its field.
+      const victim =
+        order.victim === undefined ? units[unitIndex[indexOf(order.target)] ?? -1] : unitNumbered(order.victim);
+      return victim ? [{ attacker: unitNumbered(order.attacker), target: copy(order.target), victim }] : [];
+    }),
     works: saved.works.map((order) => ({
       unit: unitNumbered(order.unit),
       target: copy(order.target),

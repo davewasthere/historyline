@@ -279,6 +279,12 @@ export interface AttackOrder {
   attacker: Unit;
   /** The field aimed at. */
   target: Field;
+  /**
+   * The unit that stood on that field when the order was given. The attack
+   * is on that unit, as it stood there: if it moves away before the half
+   * ends, the attack came first and still strikes it.
+   */
+  victim: Unit;
 }
 
 /**
@@ -773,7 +779,7 @@ export function orderAttack(state: GameState, unit: Unit, target: Field): OrderR
     return { ok: false, reason: 'This unit cannot attack that unit from here.' };
   }
   cancelAttack(state, unit);
-  state.orders.push({ attacker: unit, target: { column: target.column, row: target.row } });
+  state.orders.push({ attacker: unit, target: { column: target.column, row: target.row }, victim });
   return { ok: true };
 }
 
@@ -830,10 +836,25 @@ export interface Foreseen {
  * What an attack by a unit on a field would cost both sides as things stand
  * now, or null if the unit could not attack what is on the field. Nothing is
  * changed.
+ *
+ * With `victim`, the unit an order was given on, the attack is on that unit
+ * as it stood on the field, wherever it has gone since, into a transport or
+ * building too: the attack came before its move. Null then only if either
+ * unit has been destroyed in the meantime.
  */
-export function foreseeFight(state: GameState, attacker: Unit, targetField: Field): Foreseen | null {
-  const target = unitAt(state, targetField);
-  if (attacker.destroyed || !target || !canTarget(state, attacker, target, targetField)) return null;
+export function foreseeFight(state: GameState, attacker: Unit, targetField: Field, victim?: Unit): Foreseen | null {
+  const target = victim ?? unitAt(state, targetField);
+  if (attacker.destroyed || !target || target.destroyed) return null;
+  // Whether the victim of an order still stands where it was aimed at.
+  const stayed = !target.inside && fieldsOf(target).some((field) => sameField(field, targetField));
+  if (victim && !stayed) {
+    const type = state.unitTypes[attacker.type];
+    const victimType = state.unitTypes[victim.type];
+    if (!type || !victimType || attacker.inside || victim.side === attacker.side) return null;
+    if (!canAttack(type, victimType.classBits, distance(attacker, targetField))) return null;
+  } else if (!canTarget(state, attacker, target, targetField)) {
+    return null;
+  }
   if (attacker.side === null || target.side === null) return null;
 
   const attackerType = state.unitTypes[attacker.type]!;
@@ -841,7 +862,8 @@ export function foreseeFight(state: GameState, attacker: Unit, targetField: Fiel
   const terrainOn = (field: Field) => state.terrainTypes[state.map.terrain[fieldIndex(state, field)]!] ?? { combatGround: 8 };
   const { flank, support } = supportFor(
     { field: attacker, side: attacker.side, classBits: attackerType.classBits },
-    { field: target, side: target.side, classBits: targetType.classBits },
+    // A unit that has moved away is fought where it was aimed at.
+    { field: stayed ? target : targetField, side: target.side, classBits: targetType.classBits },
     (field) => {
       const unit = unitAt(state, field);
       const type = unit ? state.unitTypes[unit.type] : undefined;
@@ -878,9 +900,10 @@ function fight(state: GameState, order: AttackOrder): FightReport {
     support: 0,
     cargoDestroyed: [],
   };
-  // The unit aimed at may have moved away or been destroyed by an earlier
-  // attack; whatever enemy stands there now is hit, if it can be.
-  const result = foreseeFight(state, attacker, targetField);
+  // The unit aimed at may have moved away since: the attack came first, and
+  // strikes it as it stood there. Only one destroyed by an earlier attack of
+  // this half is missed.
+  const result = foreseeFight(state, attacker, targetField, order.victim);
   if (!result) return report;
   const { target, flank, support } = result;
 

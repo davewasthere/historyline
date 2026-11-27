@@ -205,9 +205,13 @@ which is which.
 
 What is and is not in yet:
 
-- A unit moves once and attacks once per round. An attack hits whatever enemy
-  stands on the field aimed at when the half ends, so a unit that moves away
-  in the same half is missed. Medium, heavy and train artillery cannot attack
+- A unit moves once and attacks once per round. An attack is on the unit that
+  stands on the field aimed at when the order is given, and it comes before
+  that unit's move: a unit that moves away afterwards in the same half, into
+  a transport or building too, is still struck, as it stood there. A unit
+  that has moved into range can be attacked where it now stands. Only a unit
+  that an earlier attack of the half destroyed is missed. Medium, heavy and
+  train artillery cannot attack
   in the half after one in which they moved: in a round they move or fire.
 - Fights follow `src/game/combat.ts`: losses are worked out, not rolled.
   Units lose vehicles, gain experience, and are removed when none are left. A
