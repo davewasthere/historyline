@@ -14,7 +14,7 @@
 // the map, the two units and what each lost, and are marked on the map, where
 // the marks stay until the next click.
 
-import type { Side } from '../formats/map.ts';
+import { NO_UNIT, type Side } from '../formats/map.ts';
 import { canEnter, terrainClassName, terrainMaskNames } from '../formats/terrain.ts';
 import type { UnitType, Weapon } from '../formats/unitTypes.ts';
 import { ATTACKS_INDIRECTLY, ATTACKS_NEVER_BACK, MAX_EXPERIENCE } from '../game/combat.ts';
@@ -51,6 +51,7 @@ import {
   rangeOf,
   repairCost,
   repairUnit,
+  resolveAttacks,
   START_FACING,
   unitAt,
   workOf,
@@ -212,6 +213,8 @@ interface FightMark {
   targetGone: boolean;
   /** True if nothing it could attack stood on the field any more. */
   missed: boolean;
+  /** The unit that was hit, if one was. */
+  victim: Unit | null;
   attacker: Fighter;
   /** The unit that was hit; null if the attack hit nothing. */
   target: Fighter | null;
@@ -360,6 +363,7 @@ function markFights(fights: FightReport[]): void {
     return {
       from,
       to: fight.targetField,
+      victim: fight.target,
       attackerLosses: fight.attackerLosses,
       targetLosses: fight.targetLosses,
       attackerGone: fight.attackerLeft <= 0,
@@ -525,6 +529,26 @@ function renderFight(): void {
   next.focus({ preventScroll: true });
 }
 
+/**
+ * The units shown elsewhere than they are while the turn's attacks are gone
+ * through, each with the field it is shown on. The attack came before the
+ * move: a unit that moved away after an attack on it was ordered stays, to
+ * the eye, on the field it was struck on until the last attack on it has
+ * been shown, and only then is where it went. A ship that fills two fields
+ * is left where it is.
+ */
+function heldBack(): Map<Unit, Field> {
+  const held = new Map<Unit, Field>();
+  if (!fightsPlaying) return held;
+  for (const mark of fightMarks.slice(fightAt)) {
+    const unit = mark.victim;
+    if (!unit || unit.destroyed || unit.tail || held.has(unit)) continue;
+    const there = !unit.inside && unit.column === mark.to.column && unit.row === mark.to.row;
+    if (!there) held.set(unit, mark.to);
+  }
+  return held;
+}
+
 type Dock = 'bottom' | 'top' | 'right' | 'left';
 /** The edge of the map's view the dialog was last put at; it stays there for as long as the attacks have room beside it. */
 let fightDock: Dock = 'bottom';
@@ -606,9 +630,9 @@ function showFight(at: number): void {
   fightsPlaying = true;
   fightAt = at;
   fightStruck = false;
-  // The map shows the attacks so far, this one standing out.
+  // The map shows the attacks so far, this one standing out, and the units not yet moved on from theirs.
   fightsShown = at + 1;
-  drawOverlay();
+  draw();
   renderFight();
   placeFight([mark.from, mark.to]);
   // A moment to see who fights whom, then the losses; an attack that hit nothing has none to wait for.
@@ -644,7 +668,7 @@ function endFights(): void {
     then();
     return;
   }
-  drawOverlay();
+  draw();
   renderDetails();
 }
 
@@ -668,7 +692,9 @@ function hideFights(): void {
   afterFights = null;
   if (fightsShown === 0 && !playing) return;
   fightsShown = 0;
-  drawOverlay();
+  // Units kept on the fields they were struck on are let go.
+  if (playing) draw();
+  else drawOverlay();
 }
 
 /** Draws the attacks that have come up: a line for each, what each unit lost, and a cross on those destroyed. */
@@ -754,7 +780,7 @@ function startGame(): void {
   played = [null, null];
   computerTurns = [];
   strengths = [strengthsNow()];
-  runComputer();
+  runComputer('orders');
 }
 
 // --- the computer's player ---------------------------------------------------
@@ -769,21 +795,23 @@ function showsOrdersOf(side: Side | null): boolean {
 }
 
 /**
- * Has the computer play its part of the half the game is in, if it has not
- * yet. The side that attacks goes first, so that its orders are given before
- * the other side's units move, as a player's are who cannot see them move.
+ * Has the computer play one part of the half the game is in, if it plays
+ * that side and has not yet: its orders, if its side attacks, as the half
+ * begins; its moves, if its side moves, as the half ends. Each side then
+ * gives its orders seeing the other's units where the half found them, as
+ * two players do who cannot see each other move; and an attack strikes the
+ * unit it was ordered on, though that unit moves away afterwards.
  */
-function runComputer(): void {
+function runComputer(part: 'orders' | 'moves'): void {
   if (!game || !loaded || game.winner !== null) return;
   const half = `${game.round}:${game.mover}`;
-  for (const side of [attackerSide(game), game.mover]) {
-    if (!computerPlays(side) || played[side] === half) continue;
-    played[side] = half;
-    computerTurns.push(computerPlay(game, side, { table: computerTableFor(assets, loaded, state.mapId, side) }));
-  }
+  const side = part === 'orders' ? attackerSide(game) : game.mover;
+  if (!computerPlays(side) || played[side] === half) return;
+  played[side] = half;
+  computerTurns.push(computerPlay(game, side, { table: computerTableFor(assets, loaded, state.mapId, side) }));
 }
 
-/** What the computer did when this half began, in a few words; empty if it did nothing worth telling. */
+/** What the computer did in one of its parts, in a few words; empty if it did nothing worth telling. */
 function describeComputerTurn(turn: ComputerTurn): string {
   const parts: string[] = [];
   const count = (n: number, what: string) => `${n} ${what}${n === 1 ? '' : 's'}`;
@@ -831,6 +859,8 @@ function untouched(current: GameState): boolean {
  */
 function autosave(): void {
   if (!game || gameMapId !== state.mapId) return;
+  // Not in the middle of a turn's end, with its attacks carried out and the rest to come.
+  if (afterFights) return;
   try {
     if (game.winner !== null || untouched(game)) localStorage.removeItem(autosaveKey(gameMapId));
     else localStorage.setItem(autosaveKey(gameMapId), JSON.stringify(battleNow(game)));
@@ -858,7 +888,7 @@ function takeUp(battle: SavedBattle): string | null {
     ? battle.strengths.filter((pair) => Array.isArray(pair) && pair.length === 2 && pair.every(Number.isFinite))
     : [];
   strengths = kept.length > 0 ? kept.map(([first, second]): [number, number] => [first, second]) : [strengthsNow()];
-  runComputer();
+  runComputer('orders');
   syncControls();
   writeStateToUrl();
   return null;
@@ -870,6 +900,8 @@ function describeSave(battle: SavedBattle): string {
 
 function saveBattle(): void {
   if (!game || gameMapId !== state.mapId) return;
+  // A turn that is ending is ended first.
+  if (fightsPlaying) endFights();
   try {
     localStorage.setItem(saveKey(state.mapId), JSON.stringify(battleNow(game)));
     notice = `Battle on map ${state.mapId} saved in this browser. Load brings it back.`;
@@ -900,7 +932,21 @@ function draw(): void {
     // Both halves of a ship that fills two fields face the same way.
     for (const field of fieldsOf(unit)) facings[field.row * map.columns + field.column] = unit.facing;
   }
-  const surface = renderMap(map, assets, {
+  // While a turn's attacks are shown, a unit that moved on after one stands where it was struck.
+  const held = heldBack();
+  let shown = map;
+  if (held.size > 0) {
+    const units = map.units.slice();
+    for (const [unit, field] of held) {
+      if (unit.side === null) continue;
+      if (!unit.inside) units[unit.row * map.columns + unit.column] = NO_UNIT;
+      const at = field.row * map.columns + field.column;
+      units[at] = unit.type * 2 + unit.side;
+      facings[at] = unit.facing;
+    }
+    shown = { ...map, units };
+  }
+  const surface = renderMap(shown, assets, {
     season: state.season,
     palette: state.palette,
     showUnits: state.showUnits,
@@ -1100,12 +1146,16 @@ function drawOverlay(): void {
       context.fillText(String(count), x + 5, y + 2);
     };
     for (const building of game.buildings) countMark(building.entrance, building.units.length);
+    // A unit kept, while its attack is shown, on the field it was struck on has its marks there.
+    const held = heldBack();
     for (const unit of game.units) {
-      if (unit.destroyed || unit.inside) continue;
-      countMark(unit, unit.cargo.length);
-      const { x, y } = fieldOrigin(unit.column, unit.row);
+      const keptOn = held.get(unit);
+      if (unit.destroyed || (unit.inside && !keptOn)) continue;
+      const place = keptOn ?? unit;
+      countMark(place, unit.cargo.length);
+      const { x, y } = fieldOrigin(place.column, place.row);
       // A small square on each unit of the moving side that has had its move.
-      if (unit.side === game.mover && unit.moved) {
+      if (unit.side === game.mover && unit.moved && !keptOn) {
         context.fillStyle = '#ffffff';
         context.fillRect(x + 14, y + 2, 5, 5);
         context.fillStyle = '#b02a2a';
@@ -1228,7 +1278,13 @@ function renderTurn(): void {
     const flag = sideFlag(one);
     if (flag) who.append(flag);
     who.append(OWNERS[one]);
-    const done = moves ? `${moved} of ${own.length} moved` : showsOrdersOf(one) ? `${orders} ordered` : '';
+    const done = moves
+      ? computer
+        ? 'moves when the turn ends'
+        : `${moved} of ${own.length} moved`
+      : showsOrdersOf(one)
+        ? `${orders} ordered`
+        : '';
     row.append(
       who,
       textElement('span', 'chip', moves ? 'Movement' : 'Attack'),
@@ -1886,8 +1942,14 @@ function renderDetails(): void {
     .map((turn): [string, string] => [`${OWNERS[turn.side]} side`, describeComputerTurn(turn)])
     .filter(([, did]) => did !== '');
   if (computerDid.length > 0) {
-    details.append(heading('The computer, as this half began'), itemList(computerDid));
-    details.append(textElement('p', 'sub', 'Yellow lines on the map show where its units moved from.'));
+    details.append(heading('The computer'), itemList(computerDid));
+    details.append(
+      textElement(
+        'p',
+        'sub',
+        'It moves its units as its half ends, and gives its orders as the next begins. Yellow lines on the map show where its units moved from.',
+      ),
+    );
   }
   if (works.length > 0) {
     details.append(heading(`Building and digging when the last turn ended (${works.length})`), itemList(works.map(describeWorkDone)));
@@ -2386,34 +2448,53 @@ function showWon(): void {
   again.focus();
 }
 
-/** Has the computer play its part of the half that has begun, and shows where things stand: at the end, how it ended. */
+/** Has the computer give its orders for the half that has begun, and shows where things stand: at the end, how it ended. */
 function beginHalf(): void {
-  runComputer();
+  runComputer('orders');
   notice = turnNotice();
   refresh();
   if (game && game.winner !== null) showWon();
 }
 
+/** The attacks of the turn that is ending, carried out and being shown, until the rest of its end is done. */
+let endingFights: FightReport[] = [];
+
+/**
+ * The rest of a turn's end, once its attacks have been carried out and
+ * shown: the computer's units move, if it plays the side that moves; then
+ * buildings are taken, building and digging done, the side paid, and the next
+ * half begun.
+ */
+function finishHalf(): void {
+  if (!game) return;
+  runComputer('moves');
+  lastReport = { ...endHalf(game), fights: endingFights };
+  endingFights = [];
+  strengths.push(strengthsNow());
+  beginHalf();
+}
+
 endTurnButton.addEventListener('click', () => {
   if (!game) return;
-  // While the attacks of the turn before are still being shown, the button only ends their show.
+  // While the attacks of the turn are still being shown, the button only ends their show.
   if (fightsPlaying) {
     endFights();
     return;
   }
-  lastReport = endHalf(game);
-  strengths.push(strengthsNow());
+  // The attacks come first, and are shown before anything else of the turn's end:
+  // a unit attacked is struck, and seen to be, before it moves.
+  endingFights = resolveAttacks(game);
+  lastReport = null;
   selected = null;
   leaving = null;
-  markFights(lastReport.fights);
   computerTurns = [];
+  markFights(endingFights);
   if (fightMarks.length === 0) {
-    beginHalf();
+    finishHalf();
     return;
   }
-  // The computer waits until the attacks have been shown: until then the units stand where they fought.
-  afterFights = beginHalf;
-  notice = turnNotice();
+  afterFights = finishHalf;
+  notice = `${fightMarks.length} ${fightMarks.length === 1 ? 'attack' : 'attacks'} carried out.`;
   refresh();
   playFights();
 });

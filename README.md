@@ -168,9 +168,13 @@ which is which.
   field yellow and the target's red. The map is not dimmed and can still be
   scrolled. "Next" goes on to the next attack; with "Auto" ticked, which
   the browser remembers, they go on by themselves after about three seconds.
-  "Skip the rest", Esc, a click on the map or "End turn" ends the show. The
-  computer plays its part of the new half only then, so that the units stand
-  where they fought while their attacks are shown.
+  "Skip the rest", Esc, a click on the map or "End turn" ends the show.
+- The attacks come before the moves, and are shown so. A unit that moved away
+  after the attack on it was ordered stands, while that attack is shown, on
+  the field it was struck on, and is where it went once the show has passed
+  it. The computer's units that move in the half wait until the show is
+  over. Only then are buildings taken, building and digging done and the side
+  paid, and the computer gives its orders for the new half.
 - On the map each attack shown leaves a white line from the attacker to the
   field it aimed at (dashed if nothing was there any more), the vehicles each
   unit lost, and a red cross on a unit destroyed. They stay until the next
@@ -196,9 +200,12 @@ which is which.
   by "Save". Both are kept in the browser they were made in (its local
   storage for this address), not in a file.
 - The computer plays the side, or both sides, it was given when the battle
-  was started. It plays its part as each half begins: its moves if its side moves,
-  its orders if its side attacks. Yellow lines show where its units moved
-  from, and the side panel says what it did. Its attack orders are not shown
+  was started. If its side attacks, it gives its orders as the half begins;
+  if its side moves, it moves as the half ends, after the half's attacks
+  have been carried out and shown.
+  Each side so gives its orders seeing the other's units where the half
+  found them, as two players do who cannot see each other move. Yellow lines
+  show where its units moved from, and the side panel says what it did. Its attack orders are not shown
   (unless it plays both sides), since a player who saw them could step out of
   the way. Its units can be looked at but not given orders. With both sides
   the computer's, "End turn" plays one half at a time.
@@ -494,22 +501,21 @@ wins to French wins. Whether a person can win each has not been tried.
 
 | Map | Fields | Play as | What it is | Computer against itself |
 | --- | --- | --- | --- | --- |
-| Mill Stream | 24 x 18 | German | A river with two bridges; the French have more of everything. | 0 : 6, in round 16 |
-| Four Roads | 24 x 16 | either | A crossroads between two equal sides. | 2 : 2, in rounds 12 to 18 |
-| Winter Line | 30 x 20, winter | German | Trench lines, wire and two bunkers against more men, tanks and guns. | 0 : 4, in rounds 12 to 20 |
-| The Narrows | 34 x 22 | German | A strait with two bridges, a quay on each bank and gunboats between them; the French flotilla is the stronger. | 2 : 2, in rounds 23 to 54 |
-| Iron Road | 24 x 32 | French | A railway down the map with sidings; the Germans have most of the trains. | 4 : 0, in rounds 25 to 28 |
-| Twin Rivers | 32 x 20 | German | Two rivers, a factory between them, and more footbridges on the French side. | 0 : 4, in rounds 15 to 21 |
-| The Passes | 28 x 20, winter | German | Two roads through mountains that only men on foot can climb, held by a few. | 0 : 4, in rounds 16 to 19 |
-| The Gulf | 36 x 24 | German | The French block the road round a gulf; the Germans have a harbour and the ships to land behind them. | 0 : 4, in rounds 33 to 35 |
-| Open Sky | 30 x 20 | German | German aircraft against a stronger French army with anti-aircraft guns. | 0 : 4, in rounds 17 to 26 |
+| Mill Stream | 24 x 18 | German | A river with two bridges; the French have more of everything. | 0 : 6, in round 12 |
+| Four Roads | 24 x 16 | either | A crossroads between two equal sides. | 1 : 3, in rounds 10 to 15 |
+| Winter Line | 30 x 20, winter | German | Trench lines, wire and two bunkers against more men, tanks and guns. | 0 : 4, in rounds 13 to 31 |
+| The Narrows | 34 x 22 | German | A strait with two bridges, a quay on each bank and gunboats between them; the French flotilla is the stronger. | 2 : 2, in rounds 21 to 55 |
+| Iron Road | 24 x 32 | French | A railway down the map with sidings; the Germans have most of the trains. | 4 : 0, in round 15 |
+| Twin Rivers | 32 x 20 | German | Two rivers, a factory between them, and more footbridges on the French side. | 0 : 4, in rounds 14 to 16 |
+| The Passes | 28 x 20, winter | German | Two roads through mountains that only men on foot can climb, held by a few. | 0 : 4, in rounds 13 to 40 |
+| The Gulf | 36 x 24 | German | The French block the road round a gulf; the Germans have a harbour and the ships to land behind them. | 0 : 4, in round 34 |
+| Open Sky | 30 x 20 | German | German aircraft against a stronger French army with anti-aircraft guns. | 0 : 4, in rounds 15 to 17 |
 | The Big Push | 46 x 28 | German | A large battle: the Germans start stronger, in front of a river, wired trenches, a second line and four bunkers. | none decided in 40 rounds |
 
 In The Narrows the buildings earn less than usual: with the usual incomes
 neither computer got across in 100 rounds and both only grew. On The Gulf
 the computer's Germans do sail their transports across, and lose both within
-ten rounds. Two battles of 100 rounds on The Big Push gave a French win in
-round 67 and a German win in round 72.
+ten rounds. Two battles of 100 rounds on The Big Push were not decided either.
 
 Not done: picking a winter look (maps draw in either season as they are),
 and writing a map out in the game's own file formats. Whether the original

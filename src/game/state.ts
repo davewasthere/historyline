@@ -1283,9 +1283,20 @@ export interface HalfReport {
  * has the construction units and sappers do the work ordered, pays the side that moved
  * what its buildings earn, then swaps the sides' roles.
  */
-export function endHalf(state: GameState): HalfReport {
+/**
+ * Carries out the attacks ordered in this half, in the order they were
+ * given, and nothing else of the half's end. They come before the moves:
+ * whoever shows a half's end can show them first and then have units move
+ * that have waited. `endHalf` does this itself if it has not been done.
+ */
+export function resolveAttacks(state: GameState): FightReport[] {
   const fights = state.orders.map((order) => fight(state, order));
   state.orders = [];
+  return fights;
+}
+
+export function endHalf(state: GameState): HalfReport {
+  const fights = resolveAttacks(state);
 
   const captures: CaptureReport[] = [];
   for (const building of state.buildings) {

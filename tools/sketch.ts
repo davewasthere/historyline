@@ -13,7 +13,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import type { Side } from '../src/formats/map.ts';
 import { computerPlay } from '../src/game/computer.ts';
-import { attackerSide, createGame, endHalf } from '../src/game/state.ts';
+import { attackerSide, createGame, endHalf, resolveAttacks } from '../src/game/state.ts';
 import { buildMap, type MapSketch } from '../src/maps/sketch.ts';
 import { loadAssets } from '../src/viewer/assets.ts';
 import { renderMap } from '../src/viewer/render.ts';
@@ -62,14 +62,17 @@ if (values.play) {
     const start = [0, 1].map((side) => state.units.filter((unit) => unit.side === side).length);
     const tally = { attacks: 0, hits: 0, built: [0, 0], taken: [0, 0] };
     while (state.round <= rounds && state.winner === null) {
-      for (const side of [attackerSide(state), state.mover]) {
-        const turn = computerPlay(state, side, { table: assets.computerTables[side], random });
-        tally.attacks += turn.attacks.length;
-        tally.built[side]! += turn.built.length;
-      }
+      // As the viewer has it: the side that attacks gives its orders as the half begins;
+      // they are carried out as it ends, and only then does the other side move.
+      const attacks = computerPlay(state, attackerSide(state), { table: assets.computerTables[attackerSide(state)], random });
+      tally.attacks += attacks.attacks.length;
+      tally.built[attackerSide(state)]! += attacks.built.length;
+      const fights = resolveAttacks(state);
+      tally.hits += fights.filter((fight) => fight.targetLosses > 0).length;
       const taker: Side = state.mover;
+      const moves = computerPlay(state, taker, { table: assets.computerTables[taker], random });
+      tally.built[taker]! += moves.built.length;
       const report = endHalf(state);
-      tally.hits += report.fights.filter((fight) => fight.targetLosses > 0).length;
       tally.taken[taker]! += report.captures.length;
     }
     const left = [0, 1].map((side) => state.units.filter((unit) => unit.side === side && !unit.destroyed).length);
