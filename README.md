@@ -80,8 +80,11 @@ It has three pages, one after the other:
   battle" goes on with it and "Start afresh" begins a new one.
 - **The battle**, as described under [Playing](#playing). "‹ Maps" in its
   toolbar leads back to the list, where the battle left can be continued.
-  Who plays, the season and the colours are not changed during a battle: its
-  toolbar has only whether units are shown, the zoom, and the turn. The side
+  Who plays, the season and the colours are not changed during a battle. The
+  top of its side panel has the turn: the round, each side with what it does
+  in this half ("Movement" or "Attack", the word of the side at the screen
+  the larger), "End turn", "Restart", "Save" and "Load", whether units are
+  shown, and the zoom. The side
   panel is as wide as it is dragged by the edge between it and the map (or
   moved with the arrow keys, the edge having the keyboard); a double click
   there gives it its usual width back. The browser remembers the width. Of the
@@ -102,7 +105,8 @@ looked at, goes from the first page straight to its missions.
 ## Playing
 
 A round has two halves. In the first the German side moves and the French
-side orders attacks; in the second they swap. The toolbar says which is which.
+side orders attacks; in the second they swap. The top of the side panel says
+which is which.
 
 - To see what a unit is: click it. The side panel shows its card: its
   picture, its side's flag (History Line's sides have flags; Battle Isle's
@@ -151,7 +155,7 @@ side orders attacks; in the second they swap. The toolbar says which is which.
   then hands over the buildings taken, has the building and digging done, pays
   the side that moved, and starts
   the next half. The side panel then lists what each attack did and which
-  buildings changed hands. The toolbar shows each side's points.
+  buildings changed hands, and has each side's points.
 - The attacks of the turn that has just ended are then shown one at a time,
   in a dialog over the map: the attacker and its target, each with the ground
   it stood on and what it had standing round it, and after a moment what the

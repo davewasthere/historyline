@@ -126,49 +126,162 @@ select {
   padding: 0.15rem 0.3rem;
 }
 
-.turn {
-  display: inline-flex;
-  align-items: center;
+/* --- the turn and its controls, at the top of the battle's side panel ----------- */
+
+body.play .details {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* What is told of the map scrolls under the turn, which stays. */
+.details-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.75rem;
+}
+
+.turn-box {
+  flex: none;
+  display: flex;
+  flex-direction: column;
   gap: 0.5rem;
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--line);
 }
 
 .turn-status {
-  font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
   font-variant-numeric: tabular-nums;
 }
 
-.turn button {
+.turn-round {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.details .turn-status p {
+  margin: 0.1rem 0 0;
+}
+
+.turn-won {
+  font-weight: 600;
+}
+
+/* A side and what it does in this half: it moves, or it attacks. */
+.mode {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem 0.5rem;
+}
+
+.mode .who {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 5.2rem;
+  font-weight: 650;
+}
+
+.mode .flag {
+  flex: none;
+  width: 21px;
+  height: 15px;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.mode .chip {
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.mode.moves .chip {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.mode.attacks .chip {
+  background: #b3261e;
+  color: #ffffff;
+}
+
+/* The side of the one at the screen has the larger word. */
+.mode:not(.computer) .chip {
+  padding: 0.2rem 0.8rem;
+  font-size: 0.95rem;
+}
+
+/* The side the computer plays is told more quietly. */
+.mode.computer .who {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.mode.computer .chip {
+  opacity: 0.55;
+}
+
+.details .turn-box button {
+  margin: 0;
+  padding: 0.25rem 0.7rem;
   font: inherit;
+  font-size: 0.9rem;
   color: inherit;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 6px;
-  padding: 0.2rem 0.7rem;
   cursor: pointer;
 }
 
-.turn button:hover {
+.details .turn-box button:hover {
   background: var(--hover);
 }
 
-.turn button:disabled {
+.details .turn-box button:disabled {
   opacity: 0.5;
   cursor: default;
 }
 
-.turn button:disabled:hover {
+.details .turn-box button:disabled:hover {
   background: var(--panel);
 }
 
-#end-turn {
+.details .turn-box #end-turn {
+  padding: 0.45rem 0.8rem;
   background: var(--accent);
   border-color: var(--accent);
   color: var(--accent-text);
+  font-size: 1rem;
+  font-weight: 600;
 }
 
-#end-turn:hover {
-  filter: brightness(1.1);
+.details .turn-box #end-turn:hover {
   background: var(--accent);
+  filter: brightness(1.1);
+}
+
+.turn-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.6rem;
+}
+
+.turn-row button {
+  flex: 1;
 }
 
 .field-info {

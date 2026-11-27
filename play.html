@@ -10,22 +10,6 @@
     <header class="toolbar">
       <a id="back" class="back" href="maps.html">‹ Maps</a>
       <h1 id="battle-title">Battle</h1>
-      <label class="check"><input type="checkbox" id="show-units" checked /> Units</label>
-      <label class="select">Zoom
-        <select id="zoom">
-          <option value="1">1×</option>
-          <option value="2" selected>2×</option>
-          <option value="3">3×</option>
-          <option value="4">4×</option>
-        </select>
-      </label>
-      <span class="turn">
-        <span id="turn-status" class="turn-status"></span>
-        <button type="button" id="end-turn">End turn</button>
-        <button type="button" id="restart">Restart</button>
-        <button type="button" id="save">Save</button>
-        <button type="button" id="load">Load</button>
-      </span>
       <output id="field-info" class="field-info">Move over the map to inspect a field; click one to pin it.</output>
     </header>
 
@@ -47,7 +31,29 @@
       title="Drag to make the side panel wider or narrower; double-click for its usual width"
     ></div>
 
-    <aside class="details" id="details" aria-label="Map details"></aside>
+    <aside class="details" id="side" aria-label="Turn and details">
+      <section class="turn-box" aria-label="Turn">
+        <div id="turn-status" class="turn-status" aria-live="polite"></div>
+        <button type="button" id="end-turn">End turn</button>
+        <div class="turn-row">
+          <button type="button" id="restart">Restart</button>
+          <button type="button" id="save">Save</button>
+          <button type="button" id="load">Load</button>
+        </div>
+        <div class="turn-row">
+          <label class="check"><input type="checkbox" id="show-units" checked /> Units</label>
+          <label class="select">Zoom
+            <select id="zoom">
+              <option value="1">1×</option>
+              <option value="2" selected>2×</option>
+              <option value="3">3×</option>
+              <option value="4">4×</option>
+            </select>
+          </label>
+        </div>
+      </section>
+      <div class="details-body" id="details"></div>
+    </aside>
 
     <dialog id="inside" class="inside" aria-labelledby="inside-title">
       <div id="inside-body" class="inside-body"></div>

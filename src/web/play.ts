@@ -107,13 +107,15 @@ const overlayCanvas = element<HTMLCanvasElement>('overlay');
 const canvasWrap = element<HTMLDivElement>('canvas-wrap');
 const backLink = element<HTMLAnchorElement>('back');
 const battleTitle = element<HTMLHeadingElement>('battle-title');
+/** The side panel: the turn and its controls at the top, and under them what is told of the map. */
+const side = element<HTMLElement>('side');
 const details = element<HTMLElement>('details');
 const resizer = element<HTMLDivElement>('resizer');
 const fieldInfo = element<HTMLOutputElement>('field-info');
 const message = element<HTMLParagraphElement>('message');
 const zoomSelect = element<HTMLSelectElement>('zoom');
 const unitsCheckbox = element<HTMLInputElement>('show-units');
-const turnStatus = element<HTMLSpanElement>('turn-status');
+const turnStatus = element<HTMLElement>('turn-status');
 const endTurnButton = element<HTMLButtonElement>('end-turn');
 const restartButton = element<HTMLButtonElement>('restart');
 const saveButton = element<HTMLButtonElement>('save');
@@ -1190,24 +1192,57 @@ function renderTurn(): void {
   loadButton.disabled = !battle;
   saveButton.title = battle ? 'Replaces the battle saved for this map' : 'Keeps this battle in the browser';
   loadButton.title = battle ? `Back to the battle ${describeSave(battle)}` : 'No battle is saved for this map';
-  if (!game) {
-    turnStatus.textContent = '';
-    return;
-  }
+  turnStatus.replaceChildren();
+  if (!game) return;
+  turnStatus.append(textElement('div', 'turn-round', `Round ${game.round}`));
   if (game.winner !== null) {
-    turnStatus.textContent =
-      `${OWNERS[game.winner]} side has won: ` +
-      (game.wonBy === 'headquarters' ? 'it took the enemy headquarters.' : 'no enemy units are left.');
+    turnStatus.append(
+      textElement(
+        'p',
+        'turn-won',
+        `${OWNERS[game.winner]} side has won: ` +
+          (game.wonBy === 'headquarters' ? 'it took the enemy headquarters.' : 'no enemy units are left.'),
+      ),
+    );
     return;
   }
+  // What each side does in this half, the word for it standing out: one moves, the other attacks.
   const own = game.units.filter((unit) => unit.side === game!.mover && !unit.destroyed);
   const moved = own.filter((unit) => unit.moved).length;
   const orders = game.orders.length + game.works.length;
-  const attacker = attackerSide(game);
-  turnStatus.textContent =
-    `Round ${game.round} · ${OWNERS[game.mover]} moves (${computerPlays(game.mover) ? 'computer, ' : ''}${moved} of ${own.length}), ` +
-    `${OWNERS[attacker]} attacks (${showsOrdersOf(attacker) ? `${orders} ordered` : 'computer'}) · ` +
-    `points: ${OWNERS[0]} ${game.points[0]}, ${OWNERS[1]} ${game.points[1]}`;
+  for (const one of [0, 1] as const) {
+    const moves = one === game.mover;
+    const computer = computerPlays(one);
+    const row = document.createElement('div');
+    row.className = `mode ${moves ? 'moves' : 'attacks'}${computer ? ' computer' : ''}`;
+    const who = document.createElement('span');
+    who.className = 'who';
+    const flag = sideFlag(one);
+    if (flag) who.append(flag);
+    who.append(OWNERS[one]);
+    const done = moves ? `${moved} of ${own.length} moved` : showsOrdersOf(one) ? `${orders} ordered` : '';
+    row.append(
+      who,
+      textElement('span', 'chip', moves ? 'Movement' : 'Attack'),
+      textElement('span', 'sub', [computer ? 'computer' : '', done].filter(Boolean).join(' · ')),
+    );
+    turnStatus.append(row);
+  }
+  // What the one at the screen does now.
+  const players = ([0, 1] as const).filter((one) => !computerPlays(one));
+  turnStatus.append(
+    textElement(
+      'p',
+      'sub',
+      players.length === 0
+        ? 'The computer plays both sides: "End turn" plays the next half.'
+        : players.length === 2
+          ? `${OWNERS[game.mover]} moves its units; ${OWNERS[attackerSide(game)]} orders attacks, builds and repairs.`
+          : players[0] === game.mover
+            ? 'You move: click a unit, then a bright field.'
+            : 'You attack: click a unit, then a red field. You can also build and repair.',
+    ),
+  );
 }
 
 /** Brings everything on screen in line with the game after it changed. */
@@ -2320,7 +2355,7 @@ function setPanelWidth(width: number | null, remember: boolean): void {
   if (!remember) return;
   try {
     if (width === null) localStorage.removeItem(PANEL_WIDTH_KEY);
-    else localStorage.setItem(PANEL_WIDTH_KEY, String(Math.round(details.getBoundingClientRect().width)));
+    else localStorage.setItem(PANEL_WIDTH_KEY, String(Math.round(side.getBoundingClientRect().width)));
   } catch {
     // No storage: the width holds until the page is left.
   }
@@ -2339,12 +2374,12 @@ resizer.addEventListener('pointerdown', (event) => {
   resizer.setPointerCapture(event.pointerId);
   resizer.classList.add('dragging');
   // The panel's left edge follows the pointer, wherever on the handle it took hold.
-  const hold = event.clientX - details.getBoundingClientRect().left;
+  const hold = event.clientX - side.getBoundingClientRect().left;
   const drag = (move: PointerEvent) => setPanelWidth(window.innerWidth - (move.clientX - hold), false);
   const drop = () => {
     resizer.removeEventListener('pointermove', drag);
     resizer.classList.remove('dragging');
-    setPanelWidth(details.getBoundingClientRect().width, true);
+    setPanelWidth(side.getBoundingClientRect().width, true);
   };
   resizer.addEventListener('pointermove', drag);
   resizer.addEventListener('pointerup', drop, { once: true });
@@ -2355,7 +2390,7 @@ resizer.addEventListener('keydown', (event) => {
   if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
   event.preventDefault();
   // The panel is on the right: the left arrow moves its edge left, which widens it.
-  setPanelWidth(details.getBoundingClientRect().width + (event.key === 'ArrowLeft' ? PANEL_STEP : -PANEL_STEP), true);
+  setPanelWidth(side.getBoundingClientRect().width + (event.key === 'ArrowLeft' ? PANEL_STEP : -PANEL_STEP), true);
 });
 
 saveButton.addEventListener('click', saveBattle);
